@@ -1,0 +1,9 @@
+[project]
+name = "league-skin-rebaser"
+version = "0.1.0"
+description = "Automated the League of Legends skin rebaser"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.uv]
+package = false
