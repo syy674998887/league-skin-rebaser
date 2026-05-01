@@ -2,5 +2,6 @@ input
 output
 bin
 cslol-tools
+config.json
 .venv
 __pycache__
