@@ -1,0 +1,1330 @@
+{
+  "schemaVersion": 1,
+  "champions": {
+    "1": {
+      "alias": "Annie",
+      "wadBase": "Annie",
+      "mainUnit": "annie",
+      "auxiliaryUnits": [
+        "annietibbers",
+        "jade_annie",
+        "jade_annie_tibbers"
+      ]
+    },
+    "2": {
+      "alias": "Olaf",
+      "wadBase": "Olaf",
+      "mainUnit": "olaf",
+      "auxiliaryUnits": [
+        "jade_olaf",
+        "jade_olafaxe",
+        "olafaxe"
+      ]
+    },
+    "3": {
+      "alias": "Galio",
+      "wadBase": "Galio",
+      "mainUnit": "galio",
+      "auxiliaryUnits": []
+    },
+    "4": {
+      "alias": "TwistedFate",
+      "wadBase": "TwistedFate",
+      "mainUnit": "twistedfate",
+      "auxiliaryUnits": [
+        "jade_twistedfate"
+      ]
+    },
+    "5": {
+      "alias": "XinZhao",
+      "wadBase": "XinZhao",
+      "mainUnit": "xinzhao",
+      "auxiliaryUnits": []
+    },
+    "6": {
+      "alias": "Urgot",
+      "wadBase": "Urgot",
+      "mainUnit": "urgot",
+      "auxiliaryUnits": []
+    },
+    "7": {
+      "alias": "Leblanc",
+      "wadBase": "Leblanc",
+      "mainUnit": "leblanc",
+      "auxiliaryUnits": []
+    },
+    "8": {
+      "alias": "Vladimir",
+      "wadBase": "Vladimir",
+      "mainUnit": "vladimir",
+      "auxiliaryUnits": []
+    },
+    "9": {
+      "alias": "FiddleSticks",
+      "wadBase": "FiddleSticks",
+      "mainUnit": "fiddlesticks",
+      "auxiliaryUnits": [
+        "fiddlestickseffigy",
+        "jade_fiddlesticks"
+      ]
+    },
+    "10": {
+      "alias": "Kayle",
+      "wadBase": "Kayle",
+      "mainUnit": "kayle",
+      "auxiliaryUnits": [
+        "jade_kayle"
+      ]
+    },
+    "11": {
+      "alias": "MasterYi",
+      "wadBase": "MasterYi",
+      "mainUnit": "masteryi",
+      "auxiliaryUnits": [
+        "jade_masteryi"
+      ]
+    },
+    "12": {
+      "alias": "Alistar",
+      "wadBase": "Alistar",
+      "mainUnit": "alistar",
+      "auxiliaryUnits": [
+        "jade_alistar"
+      ]
+    },
+    "13": {
+      "alias": "Ryze",
+      "wadBase": "Ryze",
+      "mainUnit": "ryze",
+      "auxiliaryUnits": [
+        "jade_ryze"
+      ]
+    },
+    "14": {
+      "alias": "Sion",
+      "wadBase": "Sion",
+      "mainUnit": "sion",
+      "auxiliaryUnits": [
+        "jade_sion"
+      ]
+    },
+    "15": {
+      "alias": "Sivir",
+      "wadBase": "Sivir",
+      "mainUnit": "sivir",
+      "auxiliaryUnits": [
+        "jade_sivir"
+      ]
+    },
+    "16": {
+      "alias": "Soraka",
+      "wadBase": "Soraka",
+      "mainUnit": "soraka",
+      "auxiliaryUnits": [
+        "jade_soraka"
+      ]
+    },
+    "17": {
+      "alias": "Teemo",
+      "wadBase": "Teemo",
+      "mainUnit": "teemo",
+      "auxiliaryUnits": [
+        "jade_teemo",
+        "jade_teemomushroom",
+        "teemomushroom"
+      ]
+    },
+    "18": {
+      "alias": "Tristana",
+      "wadBase": "Tristana",
+      "mainUnit": "tristana",
+      "auxiliaryUnits": [
+        "jade_tristana"
+      ]
+    },
+    "19": {
+      "alias": "Warwick",
+      "wadBase": "Warwick",
+      "mainUnit": "warwick",
+      "auxiliaryUnits": [
+        "jade_warwick"
+      ]
+    },
+    "20": {
+      "alias": "Nunu",
+      "wadBase": "Nunu",
+      "mainUnit": "nunu",
+      "auxiliaryUnits": [
+        "jade_nunu",
+        "nunusnowball"
+      ]
+    },
+    "21": {
+      "alias": "MissFortune",
+      "wadBase": "MissFortune",
+      "mainUnit": "missfortune",
+      "auxiliaryUnits": [
+        "jade_missfortune"
+      ]
+    },
+    "22": {
+      "alias": "Ashe",
+      "wadBase": "Ashe",
+      "mainUnit": "ashe",
+      "auxiliaryUnits": [
+        "jade_ashe"
+      ]
+    },
+    "23": {
+      "alias": "Tryndamere",
+      "wadBase": "Tryndamere",
+      "mainUnit": "tryndamere",
+      "auxiliaryUnits": [
+        "jade_tryndamere"
+      ]
+    },
+    "24": {
+      "alias": "Jax",
+      "wadBase": "Jax",
+      "mainUnit": "jax",
+      "auxiliaryUnits": [
+        "jade_jax"
+      ]
+    },
+    "25": {
+      "alias": "Morgana",
+      "wadBase": "Morgana",
+      "mainUnit": "morgana",
+      "auxiliaryUnits": [
+        "jade_morgana"
+      ]
+    },
+    "26": {
+      "alias": "Zilean",
+      "wadBase": "Zilean",
+      "mainUnit": "zilean",
+      "auxiliaryUnits": [
+        "jade_zilean"
+      ]
+    },
+    "27": {
+      "alias": "Singed",
+      "wadBase": "Singed",
+      "mainUnit": "singed",
+      "auxiliaryUnits": [
+        "jade_singed"
+      ]
+    },
+    "28": {
+      "alias": "Evelynn",
+      "wadBase": "Evelynn",
+      "mainUnit": "evelynn",
+      "auxiliaryUnits": [
+        "jade_evelynn"
+      ]
+    },
+    "29": {
+      "alias": "Twitch",
+      "wadBase": "Twitch",
+      "mainUnit": "twitch",
+      "auxiliaryUnits": [
+        "jade_twitch"
+      ]
+    },
+    "30": {
+      "alias": "Karthus",
+      "wadBase": "Karthus",
+      "mainUnit": "karthus",
+      "auxiliaryUnits": [
+        "jade_karthus"
+      ]
+    },
+    "31": {
+      "alias": "Chogath",
+      "wadBase": "Chogath",
+      "mainUnit": "chogath",
+      "auxiliaryUnits": [
+        "jade_chogath"
+      ]
+    },
+    "32": {
+      "alias": "Amumu",
+      "wadBase": "Amumu",
+      "mainUnit": "amumu",
+      "auxiliaryUnits": [
+        "jade_amumu"
+      ]
+    },
+    "33": {
+      "alias": "Rammus",
+      "wadBase": "Rammus",
+      "mainUnit": "rammus",
+      "auxiliaryUnits": [
+        "jade_rammus",
+        "jade_rammusdbc",
+        "jade_rammuspb",
+        "rammusdbc",
+        "rammuspb"
+      ]
+    },
+    "34": {
+      "alias": "Anivia",
+      "wadBase": "Anivia",
+      "mainUnit": "anivia",
+      "auxiliaryUnits": [
+        "aniviaegg",
+        "aniviaiceblock",
+        "jade_anivia",
+        "jade_aniviaegg",
+        "jade_aniviaiceblock"
+      ]
+    },
+    "35": {
+      "alias": "Shaco",
+      "wadBase": "Shaco",
+      "mainUnit": "shaco",
+      "auxiliaryUnits": [
+        "jade_shaco",
+        "jade_shacobox",
+        "shacobox"
+      ]
+    },
+    "36": {
+      "alias": "DrMundo",
+      "wadBase": "DrMundo",
+      "mainUnit": "drmundo",
+      "auxiliaryUnits": [
+        "jade_drmundo"
+      ]
+    },
+    "37": {
+      "alias": "Sona",
+      "wadBase": "Sona",
+      "mainUnit": "sona",
+      "auxiliaryUnits": [
+        "jade_sona",
+        "sonadjgenre01",
+        "sonadjgenre02",
+        "sonadjgenre03"
+      ]
+    },
+    "38": {
+      "alias": "Kassadin",
+      "wadBase": "Kassadin",
+      "mainUnit": "kassadin",
+      "auxiliaryUnits": [
+        "jade_kassadin"
+      ]
+    },
+    "39": {
+      "alias": "Irelia",
+      "wadBase": "Irelia",
+      "mainUnit": "irelia",
+      "auxiliaryUnits": [
+        "ireliablades"
+      ]
+    },
+    "40": {
+      "alias": "Janna",
+      "wadBase": "Janna",
+      "mainUnit": "janna",
+      "auxiliaryUnits": [
+        "jade_janna"
+      ]
+    },
+    "41": {
+      "alias": "Gangplank",
+      "wadBase": "Gangplank",
+      "mainUnit": "gangplank",
+      "auxiliaryUnits": [
+        "gangplankbarrel",
+        "jade_gangplank"
+      ]
+    },
+    "42": {
+      "alias": "Corki",
+      "wadBase": "Corki",
+      "mainUnit": "corki",
+      "auxiliaryUnits": [
+        "jade_corki"
+      ]
+    },
+    "43": {
+      "alias": "Karma",
+      "wadBase": "Karma",
+      "mainUnit": "karma",
+      "auxiliaryUnits": []
+    },
+    "44": {
+      "alias": "Taric",
+      "wadBase": "Taric",
+      "mainUnit": "taric",
+      "auxiliaryUnits": [
+        "jade_taric"
+      ]
+    },
+    "45": {
+      "alias": "Veigar",
+      "wadBase": "Veigar",
+      "mainUnit": "veigar",
+      "auxiliaryUnits": [
+        "jade_veigar"
+      ]
+    },
+    "48": {
+      "alias": "Trundle",
+      "wadBase": "Trundle",
+      "mainUnit": "trundle",
+      "auxiliaryUnits": [
+        "trundlewall"
+      ]
+    },
+    "50": {
+      "alias": "Swain",
+      "wadBase": "Swain",
+      "mainUnit": "swain",
+      "auxiliaryUnits": [
+        "swaindemonform"
+      ]
+    },
+    "51": {
+      "alias": "Caitlyn",
+      "wadBase": "Caitlyn",
+      "mainUnit": "caitlyn",
+      "auxiliaryUnits": [
+        "caitlyntrap"
+      ]
+    },
+    "53": {
+      "alias": "Blitzcrank",
+      "wadBase": "Blitzcrank",
+      "mainUnit": "blitzcrank",
+      "auxiliaryUnits": [
+        "jade_blitzcrank"
+      ]
+    },
+    "54": {
+      "alias": "Malphite",
+      "wadBase": "Malphite",
+      "mainUnit": "malphite",
+      "auxiliaryUnits": [
+        "jade_malphite"
+      ]
+    },
+    "55": {
+      "alias": "Katarina",
+      "wadBase": "Katarina",
+      "mainUnit": "katarina",
+      "auxiliaryUnits": [
+        "jade_katarina"
+      ]
+    },
+    "56": {
+      "alias": "Nocturne",
+      "wadBase": "Nocturne",
+      "mainUnit": "nocturne",
+      "auxiliaryUnits": []
+    },
+    "57": {
+      "alias": "Maokai",
+      "wadBase": "Maokai",
+      "mainUnit": "maokai",
+      "auxiliaryUnits": [
+        "maokaisproutling"
+      ]
+    },
+    "58": {
+      "alias": "Renekton",
+      "wadBase": "Renekton",
+      "mainUnit": "renekton",
+      "auxiliaryUnits": []
+    },
+    "59": {
+      "alias": "JarvanIV",
+      "wadBase": "JarvanIV",
+      "mainUnit": "jarvaniv",
+      "auxiliaryUnits": [
+        "jade_jarvaniv",
+        "jade_jarvanivstandard",
+        "jade_jarvanivwall",
+        "jarvanivstandard",
+        "jarvanivwall"
+      ]
+    },
+    "60": {
+      "alias": "Elise",
+      "wadBase": "Elise",
+      "mainUnit": "elise",
+      "auxiliaryUnits": [
+        "elisespider",
+        "elisespiderling"
+      ]
+    },
+    "61": {
+      "alias": "Orianna",
+      "wadBase": "Orianna",
+      "mainUnit": "orianna",
+      "auxiliaryUnits": [
+        "oriannaball",
+        "oriannanoball"
+      ]
+    },
+    "62": {
+      "alias": "MonkeyKing",
+      "wadBase": "MonkeyKing",
+      "mainUnit": "monkeyking",
+      "auxiliaryUnits": [
+        "jade_wukong",
+        "monkeykingclone",
+        "monkeykingflying"
+      ]
+    },
+    "63": {
+      "alias": "Brand",
+      "wadBase": "Brand",
+      "mainUnit": "brand",
+      "auxiliaryUnits": [
+        "jade_brand"
+      ]
+    },
+    "64": {
+      "alias": "LeeSin",
+      "wadBase": "LeeSin",
+      "mainUnit": "leesin",
+      "auxiliaryUnits": [
+        "jade_leesin"
+      ]
+    },
+    "67": {
+      "alias": "Vayne",
+      "wadBase": "Vayne",
+      "mainUnit": "vayne",
+      "auxiliaryUnits": [
+        "jade_vayne"
+      ]
+    },
+    "68": {
+      "alias": "Rumble",
+      "wadBase": "Rumble",
+      "mainUnit": "rumble",
+      "auxiliaryUnits": []
+    },
+    "69": {
+      "alias": "Cassiopeia",
+      "wadBase": "Cassiopeia",
+      "mainUnit": "cassiopeia",
+      "auxiliaryUnits": [
+        "cassiopeia_death"
+      ]
+    },
+    "72": {
+      "alias": "Skarner",
+      "wadBase": "Skarner",
+      "mainUnit": "skarner",
+      "auxiliaryUnits": [
+        "jade_skarner",
+        "testcuberender"
+      ]
+    },
+    "74": {
+      "alias": "Heimerdinger",
+      "wadBase": "Heimerdinger",
+      "mainUnit": "heimerdinger",
+      "auxiliaryUnits": [
+        "heimertblue",
+        "heimertyellow",
+        "jade_heimerdinger",
+        "jade_heimerdingerturret"
+      ]
+    },
+    "75": {
+      "alias": "Nasus",
+      "wadBase": "Nasus",
+      "mainUnit": "nasus",
+      "auxiliaryUnits": [
+        "jade_nasus",
+        "jade_nasusult",
+        "nasusult"
+      ]
+    },
+    "76": {
+      "alias": "Nidalee",
+      "wadBase": "Nidalee",
+      "mainUnit": "nidalee",
+      "auxiliaryUnits": [
+        "jade_nidalee",
+        "jade_nidaleecougar",
+        "jade_nidaleespear",
+        "nidaleecougar",
+        "nidaleespear"
+      ]
+    },
+    "77": {
+      "alias": "Udyr",
+      "wadBase": "Udyr",
+      "mainUnit": "udyr",
+      "auxiliaryUnits": []
+    },
+    "78": {
+      "alias": "Poppy",
+      "wadBase": "Poppy",
+      "mainUnit": "poppy",
+      "auxiliaryUnits": []
+    },
+    "79": {
+      "alias": "Gragas",
+      "wadBase": "Gragas",
+      "mainUnit": "gragas",
+      "auxiliaryUnits": [
+        "jade_gragas"
+      ]
+    },
+    "80": {
+      "alias": "Pantheon",
+      "wadBase": "Pantheon",
+      "mainUnit": "pantheon",
+      "auxiliaryUnits": [
+        "jade_pantheon"
+      ]
+    },
+    "81": {
+      "alias": "Ezreal",
+      "wadBase": "Ezreal",
+      "mainUnit": "ezreal",
+      "auxiliaryUnits": [
+        "jade_ezreal"
+      ]
+    },
+    "82": {
+      "alias": "Mordekaiser",
+      "wadBase": "Mordekaiser",
+      "mainUnit": "mordekaiser",
+      "auxiliaryUnits": []
+    },
+    "83": {
+      "alias": "Yorick",
+      "wadBase": "Yorick",
+      "mainUnit": "yorick",
+      "auxiliaryUnits": [
+        "yorickbigghoul",
+        "yorickghoulmelee",
+        "yorickwghoul",
+        "yorickwinvisible"
+      ]
+    },
+    "84": {
+      "alias": "Akali",
+      "wadBase": "Akali",
+      "mainUnit": "akali",
+      "auxiliaryUnits": [
+        "jade_akali"
+      ]
+    },
+    "85": {
+      "alias": "Kennen",
+      "wadBase": "Kennen",
+      "mainUnit": "kennen",
+      "auxiliaryUnits": [
+        "jade_kennen"
+      ]
+    },
+    "86": {
+      "alias": "Garen",
+      "wadBase": "Garen",
+      "mainUnit": "garen",
+      "auxiliaryUnits": [
+        "jade_garen"
+      ]
+    },
+    "89": {
+      "alias": "Leona",
+      "wadBase": "Leona",
+      "mainUnit": "leona",
+      "auxiliaryUnits": [
+        "jade_leona"
+      ]
+    },
+    "90": {
+      "alias": "Malzahar",
+      "wadBase": "Malzahar",
+      "mainUnit": "malzahar",
+      "auxiliaryUnits": [
+        "jade_malzahar",
+        "jade_malzaharvoidling",
+        "malzaharvoidling"
+      ]
+    },
+    "91": {
+      "alias": "Talon",
+      "wadBase": "Talon",
+      "mainUnit": "talon",
+      "auxiliaryUnits": []
+    },
+    "92": {
+      "alias": "Riven",
+      "wadBase": "Riven",
+      "mainUnit": "riven",
+      "auxiliaryUnits": []
+    },
+    "96": {
+      "alias": "KogMaw",
+      "wadBase": "KogMaw",
+      "mainUnit": "kogmaw",
+      "auxiliaryUnits": [
+        "jade_kogmaw",
+        "jade_kogmawdead",
+        "kogmawdead"
+      ]
+    },
+    "98": {
+      "alias": "Shen",
+      "wadBase": "Shen",
+      "mainUnit": "shen",
+      "auxiliaryUnits": [
+        "jade_shen",
+        "shenspirit"
+      ]
+    },
+    "99": {
+      "alias": "Lux",
+      "wadBase": "Lux",
+      "mainUnit": "lux",
+      "auxiliaryUnits": [
+        "jade_lux",
+        "luxair",
+        "luxdark",
+        "luxfire",
+        "luxice",
+        "luxmagma",
+        "luxmystic",
+        "luxnature",
+        "luxstorm",
+        "luxwater"
+      ]
+    },
+    "101": {
+      "alias": "Xerath",
+      "wadBase": "Xerath",
+      "mainUnit": "xerath",
+      "auxiliaryUnits": []
+    },
+    "102": {
+      "alias": "Shyvana",
+      "wadBase": "Shyvana",
+      "mainUnit": "shyvana",
+      "auxiliaryUnits": [
+        "shyvanadragon"
+      ]
+    },
+    "103": {
+      "alias": "Ahri",
+      "wadBase": "Ahri",
+      "mainUnit": "ahri",
+      "auxiliaryUnits": [
+        "jade_ahri"
+      ]
+    },
+    "104": {
+      "alias": "Graves",
+      "wadBase": "Graves",
+      "mainUnit": "graves",
+      "auxiliaryUnits": []
+    },
+    "105": {
+      "alias": "Fizz",
+      "wadBase": "Fizz",
+      "mainUnit": "fizz",
+      "auxiliaryUnits": [
+        "fizzbait",
+        "fizzshark"
+      ]
+    },
+    "106": {
+      "alias": "Volibear",
+      "wadBase": "Volibear",
+      "mainUnit": "volibear",
+      "auxiliaryUnits": []
+    },
+    "107": {
+      "alias": "Rengar",
+      "wadBase": "Rengar",
+      "mainUnit": "rengar",
+      "auxiliaryUnits": []
+    },
+    "110": {
+      "alias": "Varus",
+      "wadBase": "Varus",
+      "mainUnit": "varus",
+      "auxiliaryUnits": []
+    },
+    "111": {
+      "alias": "Nautilus",
+      "wadBase": "Nautilus",
+      "mainUnit": "nautilus",
+      "auxiliaryUnits": []
+    },
+    "112": {
+      "alias": "Viktor",
+      "wadBase": "Viktor",
+      "mainUnit": "viktor",
+      "auxiliaryUnits": [
+        "viktorsingularity"
+      ]
+    },
+    "113": {
+      "alias": "Sejuani",
+      "wadBase": "Sejuani",
+      "mainUnit": "sejuani",
+      "auxiliaryUnits": []
+    },
+    "114": {
+      "alias": "Fiora",
+      "wadBase": "Fiora",
+      "mainUnit": "fiora",
+      "auxiliaryUnits": []
+    },
+    "115": {
+      "alias": "Ziggs",
+      "wadBase": "Ziggs",
+      "mainUnit": "ziggs",
+      "auxiliaryUnits": []
+    },
+    "117": {
+      "alias": "Lulu",
+      "wadBase": "Lulu",
+      "mainUnit": "lulu",
+      "auxiliaryUnits": [
+        "jade_lulu",
+        "jade_lulufaerie",
+        "jade_lulupolymorphcritter",
+        "lulufaerie",
+        "lulupolymorphcritter"
+      ]
+    },
+    "119": {
+      "alias": "Draven",
+      "wadBase": "Draven",
+      "mainUnit": "draven",
+      "auxiliaryUnits": []
+    },
+    "120": {
+      "alias": "Hecarim",
+      "wadBase": "Hecarim",
+      "mainUnit": "hecarim",
+      "auxiliaryUnits": []
+    },
+    "121": {
+      "alias": "Khazix",
+      "wadBase": "Khazix",
+      "mainUnit": "khazix",
+      "auxiliaryUnits": []
+    },
+    "122": {
+      "alias": "Darius",
+      "wadBase": "Darius",
+      "mainUnit": "darius",
+      "auxiliaryUnits": []
+    },
+    "126": {
+      "alias": "Jayce",
+      "wadBase": "Jayce",
+      "mainUnit": "jayce",
+      "auxiliaryUnits": []
+    },
+    "127": {
+      "alias": "Lissandra",
+      "wadBase": "Lissandra",
+      "mainUnit": "lissandra",
+      "auxiliaryUnits": [
+        "lissandrapassive"
+      ]
+    },
+    "131": {
+      "alias": "Diana",
+      "wadBase": "Diana",
+      "mainUnit": "diana",
+      "auxiliaryUnits": []
+    },
+    "133": {
+      "alias": "Quinn",
+      "wadBase": "Quinn",
+      "mainUnit": "quinn",
+      "auxiliaryUnits": [
+        "quinnvalor"
+      ]
+    },
+    "134": {
+      "alias": "Syndra",
+      "wadBase": "Syndra",
+      "mainUnit": "syndra",
+      "auxiliaryUnits": [
+        "syndraorbs",
+        "syndrasphere"
+      ]
+    },
+    "136": {
+      "alias": "AurelionSol",
+      "wadBase": "AurelionSol",
+      "mainUnit": "aurelionsol",
+      "auxiliaryUnits": []
+    },
+    "141": {
+      "alias": "Kayn",
+      "wadBase": "Kayn",
+      "mainUnit": "kayn",
+      "auxiliaryUnits": []
+    },
+    "142": {
+      "alias": "Zoe",
+      "wadBase": "Zoe",
+      "mainUnit": "zoe",
+      "auxiliaryUnits": [
+        "trundlewall",
+        "zoeorbs"
+      ]
+    },
+    "143": {
+      "alias": "Zyra",
+      "wadBase": "Zyra",
+      "mainUnit": "zyra",
+      "auxiliaryUnits": [
+        "zyragraspingplant",
+        "zyrapassive",
+        "zyraseed",
+        "zyrathornplant"
+      ]
+    },
+    "145": {
+      "alias": "Kaisa",
+      "wadBase": "Kaisa",
+      "mainUnit": "kaisa",
+      "auxiliaryUnits": []
+    },
+    "147": {
+      "alias": "Seraphine",
+      "wadBase": "Seraphine",
+      "mainUnit": "seraphine",
+      "auxiliaryUnits": []
+    },
+    "150": {
+      "alias": "Gnar",
+      "wadBase": "Gnar",
+      "mainUnit": "gnar",
+      "auxiliaryUnits": [
+        "gnarbig"
+      ]
+    },
+    "154": {
+      "alias": "Zac",
+      "wadBase": "Zac",
+      "mainUnit": "zac",
+      "auxiliaryUnits": [
+        "zacrebirthbloblet"
+      ]
+    },
+    "157": {
+      "alias": "Yasuo",
+      "wadBase": "Yasuo",
+      "mainUnit": "yasuo",
+      "auxiliaryUnits": []
+    },
+    "161": {
+      "alias": "Velkoz",
+      "wadBase": "Velkoz",
+      "mainUnit": "velkoz",
+      "auxiliaryUnits": []
+    },
+    "163": {
+      "alias": "Taliyah",
+      "wadBase": "Taliyah",
+      "mainUnit": "taliyah",
+      "auxiliaryUnits": [
+        "taliyahwallchunk"
+      ]
+    },
+    "164": {
+      "alias": "Camille",
+      "wadBase": "Camille",
+      "mainUnit": "camille",
+      "auxiliaryUnits": []
+    },
+    "166": {
+      "alias": "Akshan",
+      "wadBase": "Akshan",
+      "mainUnit": "akshan",
+      "auxiliaryUnits": []
+    },
+    "200": {
+      "alias": "Belveth",
+      "wadBase": "Belveth",
+      "mainUnit": "belveth",
+      "auxiliaryUnits": [
+        "belvethspore",
+        "belvethvoidling"
+      ]
+    },
+    "201": {
+      "alias": "Braum",
+      "wadBase": "Braum",
+      "mainUnit": "braum",
+      "auxiliaryUnits": []
+    },
+    "202": {
+      "alias": "Jhin",
+      "wadBase": "Jhin",
+      "mainUnit": "jhin",
+      "auxiliaryUnits": [
+        "jhintrap"
+      ]
+    },
+    "203": {
+      "alias": "Kindred",
+      "wadBase": "Kindred",
+      "mainUnit": "kindred",
+      "auxiliaryUnits": [
+        "kindredjunglebountyminion",
+        "kindredwolf"
+      ]
+    },
+    "221": {
+      "alias": "Zeri",
+      "wadBase": "Zeri",
+      "mainUnit": "zeri",
+      "auxiliaryUnits": []
+    },
+    "222": {
+      "alias": "Jinx",
+      "wadBase": "Jinx",
+      "mainUnit": "jinx",
+      "auxiliaryUnits": [
+        "jinxmine"
+      ]
+    },
+    "223": {
+      "alias": "TahmKench",
+      "wadBase": "TahmKench",
+      "mainUnit": "tahmkench",
+      "auxiliaryUnits": []
+    },
+    "233": {
+      "alias": "Briar",
+      "wadBase": "Briar",
+      "mainUnit": "briar",
+      "auxiliaryUnits": []
+    },
+    "234": {
+      "alias": "Viego",
+      "wadBase": "Viego",
+      "mainUnit": "viego",
+      "auxiliaryUnits": [
+        "viegosoul"
+      ]
+    },
+    "235": {
+      "alias": "Senna",
+      "wadBase": "Senna",
+      "mainUnit": "senna",
+      "auxiliaryUnits": [
+        "sennasoul"
+      ]
+    },
+    "236": {
+      "alias": "Lucian",
+      "wadBase": "Lucian",
+      "mainUnit": "lucian",
+      "auxiliaryUnits": []
+    },
+    "238": {
+      "alias": "Zed",
+      "wadBase": "Zed",
+      "mainUnit": "zed",
+      "auxiliaryUnits": [
+        "zedshadow"
+      ]
+    },
+    "240": {
+      "alias": "Kled",
+      "wadBase": "Kled",
+      "mainUnit": "kled",
+      "auxiliaryUnits": [
+        "kledmount",
+        "kledrider"
+      ]
+    },
+    "245": {
+      "alias": "Ekko",
+      "wadBase": "Ekko",
+      "mainUnit": "ekko",
+      "auxiliaryUnits": []
+    },
+    "246": {
+      "alias": "Qiyana",
+      "wadBase": "Qiyana",
+      "mainUnit": "qiyana",
+      "auxiliaryUnits": []
+    },
+    "254": {
+      "alias": "Vi",
+      "wadBase": "Vi",
+      "mainUnit": "vi",
+      "auxiliaryUnits": []
+    },
+    "266": {
+      "alias": "Aatrox",
+      "wadBase": "Aatrox",
+      "mainUnit": "aatrox",
+      "auxiliaryUnits": []
+    },
+    "267": {
+      "alias": "Nami",
+      "wadBase": "Nami",
+      "mainUnit": "nami",
+      "auxiliaryUnits": []
+    },
+    "268": {
+      "alias": "Azir",
+      "wadBase": "Azir",
+      "mainUnit": "azir",
+      "auxiliaryUnits": [
+        "azirsoldier",
+        "azirsundisc",
+        "azirtowerclicker",
+        "azirultsoldier"
+      ]
+    },
+    "350": {
+      "alias": "Yuumi",
+      "wadBase": "Yuumi",
+      "mainUnit": "yuumi",
+      "auxiliaryUnits": []
+    },
+    "360": {
+      "alias": "Samira",
+      "wadBase": "Samira",
+      "mainUnit": "samira",
+      "auxiliaryUnits": []
+    },
+    "412": {
+      "alias": "Thresh",
+      "wadBase": "Thresh",
+      "mainUnit": "thresh",
+      "auxiliaryUnits": [
+        "threshlantern"
+      ]
+    },
+    "420": {
+      "alias": "Illaoi",
+      "wadBase": "Illaoi",
+      "mainUnit": "illaoi",
+      "auxiliaryUnits": [
+        "illaoiminion"
+      ]
+    },
+    "421": {
+      "alias": "RekSai",
+      "wadBase": "RekSai",
+      "mainUnit": "reksai",
+      "auxiliaryUnits": [
+        "reksaitunnel"
+      ]
+    },
+    "427": {
+      "alias": "Ivern",
+      "wadBase": "Ivern",
+      "mainUnit": "ivern",
+      "auxiliaryUnits": [
+        "ivernminion",
+        "iverntotem"
+      ]
+    },
+    "429": {
+      "alias": "Kalista",
+      "wadBase": "Kalista",
+      "mainUnit": "kalista",
+      "auxiliaryUnits": [
+        "kalistaaltar",
+        "kalistaspawn"
+      ]
+    },
+    "432": {
+      "alias": "Bard",
+      "wadBase": "Bard",
+      "mainUnit": "bard",
+      "auxiliaryUnits": [
+        "bardfollower",
+        "bardhealthshrine",
+        "bardpickup",
+        "bardpickupnoicon",
+        "bardportalclickable"
+      ]
+    },
+    "497": {
+      "alias": "Rakan",
+      "wadBase": "Rakan",
+      "mainUnit": "rakan",
+      "auxiliaryUnits": []
+    },
+    "498": {
+      "alias": "Xayah",
+      "wadBase": "Xayah",
+      "mainUnit": "xayah",
+      "auxiliaryUnits": []
+    },
+    "516": {
+      "alias": "Ornn",
+      "wadBase": "Ornn",
+      "mainUnit": "ornn",
+      "auxiliaryUnits": [
+        "ornnram"
+      ]
+    },
+    "517": {
+      "alias": "Sylas",
+      "wadBase": "Sylas",
+      "mainUnit": "sylas",
+      "auxiliaryUnits": []
+    },
+    "518": {
+      "alias": "Neeko",
+      "wadBase": "Neeko",
+      "mainUnit": "neeko",
+      "auxiliaryUnits": []
+    },
+    "523": {
+      "alias": "Aphelios",
+      "wadBase": "Aphelios",
+      "mainUnit": "aphelios",
+      "auxiliaryUnits": [
+        "apheliosturret"
+      ]
+    },
+    "526": {
+      "alias": "Rell",
+      "wadBase": "Rell",
+      "mainUnit": "rell",
+      "auxiliaryUnits": []
+    },
+    "555": {
+      "alias": "Pyke",
+      "wadBase": "Pyke",
+      "mainUnit": "pyke",
+      "auxiliaryUnits": []
+    },
+    "711": {
+      "alias": "Vex",
+      "wadBase": "Vex",
+      "mainUnit": "vex",
+      "auxiliaryUnits": []
+    },
+    "777": {
+      "alias": "Yone",
+      "wadBase": "Yone",
+      "mainUnit": "yone",
+      "auxiliaryUnits": []
+    },
+    "799": {
+      "alias": "Ambessa",
+      "wadBase": "Ambessa",
+      "mainUnit": "ambessa",
+      "auxiliaryUnits": []
+    },
+    "800": {
+      "alias": "Mel",
+      "wadBase": "Mel",
+      "mainUnit": "mel",
+      "auxiliaryUnits": []
+    },
+    "804": {
+      "alias": "Yunara",
+      "wadBase": "Yunara",
+      "mainUnit": "yunara",
+      "auxiliaryUnits": []
+    },
+    "805": {
+      "alias": "Locke",
+      "wadBase": "Locke",
+      "mainUnit": "locke",
+      "auxiliaryUnits": [
+        "locketotem"
+      ]
+    },
+    "875": {
+      "alias": "Sett",
+      "wadBase": "Sett",
+      "mainUnit": "sett",
+      "auxiliaryUnits": []
+    },
+    "876": {
+      "alias": "Lillia",
+      "wadBase": "Lillia",
+      "mainUnit": "lillia",
+      "auxiliaryUnits": []
+    },
+    "887": {
+      "alias": "Gwen",
+      "wadBase": "Gwen",
+      "mainUnit": "gwen",
+      "auxiliaryUnits": []
+    },
+    "888": {
+      "alias": "Renata",
+      "wadBase": "Renata",
+      "mainUnit": "renata",
+      "auxiliaryUnits": []
+    },
+    "893": {
+      "alias": "Aurora",
+      "wadBase": "Aurora",
+      "mainUnit": "aurora",
+      "auxiliaryUnits": [
+        "auroraspirits"
+      ]
+    },
+    "895": {
+      "alias": "Nilah",
+      "wadBase": "Nilah",
+      "mainUnit": "nilah",
+      "auxiliaryUnits": []
+    },
+    "897": {
+      "alias": "KSante",
+      "wadBase": "KSante",
+      "mainUnit": "ksante",
+      "auxiliaryUnits": []
+    },
+    "901": {
+      "alias": "Smolder",
+      "wadBase": "Smolder",
+      "mainUnit": "smolder",
+      "auxiliaryUnits": []
+    },
+    "902": {
+      "alias": "Milio",
+      "wadBase": "Milio",
+      "mainUnit": "milio",
+      "auxiliaryUnits": [
+        "miliominion"
+      ]
+    },
+    "904": {
+      "alias": "Zaahen",
+      "wadBase": "Zaahen",
+      "mainUnit": "zaahen",
+      "auxiliaryUnits": []
+    },
+    "910": {
+      "alias": "Hwei",
+      "wadBase": "Hwei",
+      "mainUnit": "hwei",
+      "auxiliaryUnits": []
+    },
+    "950": {
+      "alias": "Naafiri",
+      "wadBase": "Naafiri",
+      "mainUnit": "naafiri",
+      "auxiliaryUnits": [
+        "naafiripackmate"
+      ]
+    }
+  }
+}

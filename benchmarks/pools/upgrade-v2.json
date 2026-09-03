@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "poolId": "upgrade-v2",
+  "gameVersion": "16.15.799.6036",
+  "description": "Same fixed all-skins cases refreshed for the 16.15 client identity.",
+  "osPageCachePolicy": "uncontrolled",
+  "champions": [
+    {
+      "championId": 910,
+      "query": "Hwei",
+      "wadName": "Hwei.wad.client",
+      "mainUnit": "hwei",
+      "cases": ["ordinary-single-unit"],
+      "skinSet": {"ranges": [[1, 20]], "exclude": []},
+      "skinCount": 20,
+      "pairedCount": 20,
+      "uniqueBaseCount": 1,
+      "legacyExpectation": "success"
+    },
+    {
+      "championId": 1,
+      "query": "Annie",
+      "wadName": "Annie.wad.client",
+      "mainUnit": "annie",
+      "cases": ["multi-unit", "paired-pet"],
+      "skinSet": {"ranges": [[1, 59]], "exclude": [21]},
+      "skinCount": 58,
+      "pairedCount": 116,
+      "uniqueBaseCount": 2,
+      "legacyExpectation": "success"
+    },
+    {
+      "championId": 74,
+      "query": "Heimerdinger",
+      "wadName": "Heimerdinger.wad.client",
+      "mainUnit": "heimerdinger",
+      "cases": ["main-unit-heuristic-counterexample"],
+      "skinSet": {"ranges": [[1, 34]], "exclude": [7, 8, 9, 10, 11, 12, 13, 14]},
+      "skinCount": 26,
+      "pairedCount": 78,
+      "uniqueBaseCount": 3,
+      "legacyExpectation": "success"
+    },
+    {
+      "championId": 62,
+      "query": "Wukong",
+      "wadName": "MonkeyKing.wad.client",
+      "mainUnit": "monkeyking",
+      "cases": ["ui-wad-main-alias"],
+      "skinSet": {"ranges": [[1, 36]], "exclude": [28]},
+      "skinCount": 35,
+      "pairedCount": 105,
+      "uniqueBaseCount": 3,
+      "legacyExpectation": "success"
+    },
+    {
+      "championId": 805,
+      "query": "Locke",
+      "wadName": "Locke.wad.client",
+      "mainUnit": "locke",
+      "cases": ["stale-hash-dictionary", "correctness-sentinel"],
+      "skinSet": {"ranges": [[1, 9]], "exclude": []},
+      "skinCount": 9,
+      "pairedCount": 9,
+      "uniqueBaseCount": 1,
+      "legacyExpectation": "unsupported",
+      "legacyFailureType": "SystemExit",
+      "legacyFailureMessage": "no data/characters directory found after extracting Locke.wad.client"
+    },
+    {
+      "championId": 69,
+      "query": "Cassiopeia",
+      "wadName": "Cassiopeia.wad.client",
+      "mainUnit": "cassiopeia",
+      "cases": ["reference-table-missing-auxiliary"],
+      "skinSet": {"ranges": [[1, 38]], "exclude": [37]},
+      "skinCount": 37,
+      "pairedCount": 74,
+      "uniqueBaseCount": 2,
+      "legacyExpectation": "success"
+    },
+    {
+      "championId": 142,
+      "query": "Zoe",
+      "wadName": "Zoe.wad.client",
+      "mainUnit": "zoe",
+      "cases": ["per-skin-auxiliary", "cross-wad-name-contamination"],
+      "skinSet": {"ranges": [[1, 44]], "exclude": []},
+      "skinCount": 44,
+      "pairedCount": 54,
+      "uniqueBaseCount": 2,
+      "legacyExpectation": "success"
+    },
+    {
+      "championId": 99,
+      "query": "Lux",
+      "wadName": "Lux.wad.client",
+      "mainUnit": "lux",
+      "cases": ["target-only-auxiliary"],
+      "skinSet": {"ranges": [[1, 80]], "exclude": []},
+      "skinCount": 80,
+      "pairedCount": 80,
+      "uniqueBaseCount": 1,
+      "legacyExpectation": "success"
+    },
+    {
+      "championId": 48,
+      "query": "Trundle",
+      "wadName": "Trundle.wad.client",
+      "mainUnit": "trundle",
+      "cases": ["base-only-auxiliary", "cross-wad-shared-unit-name"],
+      "skinSet": {"ranges": [[1, 29]], "exclude": []},
+      "skinCount": 29,
+      "pairedCount": 29,
+      "uniqueBaseCount": 1,
+      "legacyExpectation": "success"
+    },
+    {
+      "championId": 143,
+      "query": "Zyra",
+      "wadName": "Zyra.wad.client",
+      "mainUnit": "zyra",
+      "cases": ["dense-per-skin-auxiliary", "stress"],
+      "skinSet": {"ranges": [[1, 73]], "exclude": []},
+      "skinCount": 73,
+      "pairedCount": 353,
+      "uniqueBaseCount": 5,
+      "legacyExpectation": "success"
+    }
+  ],
+  "totals": {
+    "champions": 10,
+    "skins": 411,
+    "paired": 918,
+    "uniqueBase": 21,
+    "currentRebaseRitobinProcesses": 2754,
+    "phase5LogicalConversions": 1857
+  },
+  "commonSuccess": {
+    "excludeChampionIds": [805],
+    "champions": 9,
+    "skins": 402,
+    "paired": 909,
+    "uniqueBase": 20
+  }
+}

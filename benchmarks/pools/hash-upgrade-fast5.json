@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "poolId": "hash-upgrade-fast5",
+  "gameVersion": "16.15.800.8073",
+  "description": "Dictionary-pinned five-champion cohort for normalized historical/new Phase comparisons.",
+  "osPageCachePolicy": "uncontrolled",
+  "champions": [
+    {
+      "championId": 1,
+      "query": "Annie",
+      "wadName": "Annie.wad.client",
+      "mainUnit": "annie",
+      "cases": ["multi-unit", "paired-pet", "dictionary-additions"],
+      "skinSet": {"ranges": [[1, 60]], "exclude": [21]},
+      "skinCount": 59,
+      "pairedCount": 150,
+      "uniqueBaseCount": 4,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 74,
+      "query": "Heimerdinger",
+      "wadName": "Heimerdinger.wad.client",
+      "mainUnit": "heimerdinger",
+      "cases": ["main-unit-heuristic-counterexample", "dictionary-additions"],
+      "skinSet": {
+        "ranges": [[1, 34]],
+        "exclude": [7, 8, 9, 10, 11, 12, 13, 14]
+      },
+      "skinCount": 26,
+      "pairedCount": 118,
+      "uniqueBaseCount": 5,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 62,
+      "query": "Wukong",
+      "wadName": "MonkeyKing.wad.client",
+      "mainUnit": "monkeyking",
+      "cases": ["ui-wad-main-alias", "dictionary-additions"],
+      "skinSet": {"ranges": [[1, 36]], "exclude": [28]},
+      "skinCount": 35,
+      "pairedCount": 126,
+      "uniqueBaseCount": 4,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 805,
+      "query": "Locke",
+      "wadName": "Locke.wad.client",
+      "mainUnit": "locke",
+      "cases": ["newest-hash-dictionary", "correctness-sentinel"],
+      "skinSet": {"ranges": [[1, 9]], "exclude": []},
+      "skinCount": 9,
+      "pairedCount": 18,
+      "uniqueBaseCount": 2,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 142,
+      "query": "Zoe",
+      "wadName": "Zoe.wad.client",
+      "mainUnit": "zoe",
+      "cases": ["per-skin-auxiliary", "cross-wad-name-contamination"],
+      "skinSet": {"ranges": [[1, 44]], "exclude": []},
+      "skinCount": 44,
+      "pairedCount": 54,
+      "uniqueBaseCount": 2,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    }
+  ],
+  "totals": {
+    "champions": 5,
+    "skins": 173,
+    "paired": 466,
+    "uniqueBase": 17,
+    "currentRebaseRitobinProcesses": 1398,
+    "phase5LogicalConversions": 949
+  },
+  "commonSuccess": {
+    "excludeChampionIds": [],
+    "champions": 5,
+    "skins": 173,
+    "paired": 466,
+    "uniqueBase": 17
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "poolId": "hash-upgrade-fast5",
+  "champions": {
+    "1": {
+      "alias": "Annie",
+      "wadBase": "Annie",
+      "mainUnit": "annie",
+      "auxiliaryUnits": [
+        "annietibbers",
+        "jade_annie",
+        "jade_annie_tibbers"
+      ]
+    },
+    "62": {
+      "alias": "MonkeyKing",
+      "wadBase": "MonkeyKing",
+      "mainUnit": "monkeyking",
+      "auxiliaryUnits": [
+        "jade_wukong",
+        "monkeykingclone",
+        "monkeykingflying"
+      ]
+    },
+    "74": {
+      "alias": "Heimerdinger",
+      "wadBase": "Heimerdinger",
+      "mainUnit": "heimerdinger",
+      "auxiliaryUnits": [
+        "heimertblue",
+        "heimertyellow",
+        "jade_heimerdinger",
+        "jade_heimerdingerturret"
+      ]
+    },
+    "142": {
+      "alias": "Zoe",
+      "wadBase": "Zoe",
+      "mainUnit": "zoe",
+      "auxiliaryUnits": [
+        "trundlewall",
+        "zoeorbs"
+      ]
+    },
+    "805": {
+      "alias": "Locke",
+      "wadBase": "Locke",
+      "mainUnit": "locke",
+      "auxiliaryUnits": [
+        "locketotem"
+      ]
+    }
+  }
+}

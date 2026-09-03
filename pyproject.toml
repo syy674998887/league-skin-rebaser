@@ -1,0 +1,25 @@
+[project]
+name = "league-skin-rebaser"
+version = "0.1.0"
+description = "Generate rebased League of Legends skin archives from local game files"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "xxhash>=3.5.0",
+    "zstandard>=0.23.0",
+]
+
+[project.scripts]
+rebaser = "rebaser.app:main"
+champion-units = "rebaser.maintenance.champion_units:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rebaser"]
+
+[tool.uv]
+package = true

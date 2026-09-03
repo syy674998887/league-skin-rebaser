@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "v3.0-multi-entry",
+      "minor": 0,
+      "metadata": "legacy-u16",
+      "payloads": ["raw-v30", "gzip-v30"]
+    },
+    {
+      "name": "v3.3-nonzero-metadata",
+      "minor": 3,
+      "metadata": "duplicate-u16",
+      "payloads": ["raw-v33", "gzip-v33"]
+    },
+    {
+      "name": "v3.4-nonzero-metadata",
+      "minor": 4,
+      "metadata": "packed-u24",
+      "payloads": ["raw-v34", "zstd-v34"]
+    }
+  ]
+}
