@@ -1,14 +1,46 @@
 # Benchmarks and local validation
 
-`benchmarks/` contains fixed input definitions used by local validation. Results are
-tied to the client, WADs, tools, and host that produced them. The pipeline and
-historical Git benchmark use the Git-ignored `.benchmarks/` as their default work
-area; the examples below write reports to the Git-ignored `.cache/`. Neither
-participates in normal package generation or is committed to the repository.
+`benchmarks/` contains the versioned test inputs. The benchmark tools use
+`.benchmarks/` for temporary work, and the examples write reports under
+`.cache/benchmarks/` and `.cache/audits/`. You can delete those directories after
+reviewing the results. The application stores its skin-path index and dictionary
+update state at the top level of `.cache/`.
 
-The checked-in pools target client versions 16.14 and 16.15. Commands that use a pool
+The checked-in pools target client versions 16.14, 16.15, and 16.22. Commands that use a pool
 run only when its `gameVersion` matches the installed client. If no pool matches,
 record a new pool instead of changing an existing pool's expected values.
+
+The `client-16.22-six` pool covers Annie, Heimerdinger, Wukong, Locke, Zoe, and Ahri
+on build `16.22.834.8910`. Expect 277 skin and chroma archives with 603 unit-level BIN
+pairs. Each pair links one unit's target skin to that unit's default skin.
+
+## Client 16.22 coverage
+
+On build `16.22.834.8910`, all 277 archives in the six-champion pool passed cold
+generation, output reuse, regeneration from derived caches, and output validation.
+
+A separate source scan read 9,095 distinct full skin IDs for non-default skins and
+chromas across 173 champions from the local client. Run results call this ID
+`fullSkinId`. DJ Sona has ID `37006`, champion ID `37`, and champion-local
+`skinNumber` `6`, which selects the target file `skin6.bin`.
+All 9,095 catalog names and the parent assignments for all 7,126 chromas matched the
+installed client. A separate eight-ID run reproduced all 21 reference unit BINs
+byte for byte and reused all eight archives on its second run.
+
+All 15,060 required base and target BINs passed identity extraction and byte-for-byte
+reassembly with their original identity records. The `client-16.22-resource-layouts`
+pool covers all 617 skins and chromas of the 11 champions that previously failed on
+these layouts. Its 1,329 unit pairs include the 428 previously failing pairs across
+420 full skin IDs. To repeat this benchmark and its output validation, use
+`benchmarks/pools/client-16.22-resource-layouts.json` for both the pipeline and Source Golden.
+
+Tracing those 428 pairs in the packaged WADs confirmed that 150 keep an absent
+resource link and the other 278 reach resource maps with byte-identical contents
+to the originals. Two skin IDs needed an additional file dependency.
+
+DJ Sona (`37006`) uses the base unit's absent name. Lulu's polymorph units can reuse
+a shared resource file. Swain's demon form follows the packaged champion's resolver
+for `50001` and explicitly links the verified skin 1 provider for `50002` and `50003`.
 
 ## Contents
 
@@ -38,7 +70,7 @@ identities, Ritobin batching, or output semantics:
 ```powershell
 uv run python -B tools/benchmark_pipeline.py `
   --phase local-check `
-  --pool benchmarks/pools/hash-upgrade-fast5.json `
+  --pool benchmarks/pools/client-16.22-six.json `
   --scenarios app-cold-build,output-cache-hit `
   --include-derived-warm `
   --result .cache/benchmarks/pipeline.json
@@ -54,13 +86,15 @@ comparable result.
 
 ## Golden validation
 
-Source Golden records the BIN entries to verify in source WADs. Output Golden checks
-WAD paths, paired units, identity fields, and their relationship to target content in
-generated packages:
+Source Golden records paths and digests for each required BIN in the installed WADs.
+Output Golden checks the archive set, WAD paths, default identity, and resolver
+ownership across the units in each package. It compares the remaining properties,
+resource-map bytes, entry order, and original dependencies with the target. Each
+additional dependency must supply the referenced resolver in the source WAD.
 
 ```powershell
 uv run python -B tools/golden_local.py `
-  --pool benchmarks/pools/hash-upgrade-fast5.json `
+  --pool benchmarks/pools/client-16.22-six.json `
   --output .cache/benchmarks/source-golden.json
 
 uv run python -B tools/golden_outputs.py `

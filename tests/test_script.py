@@ -10,14 +10,57 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 from rebaser.champion_layout import ChampionIdentity
+from rebaser.skin_bin import RESOURCE_RESOLVER, SKIN_PROPERTIES
+from tests.helpers.synthetic_prop import prop
 
 import script
+
+
+class WadMakeRetryTests(unittest.TestCase):
+    def test_only_recoverable_failures_retry_and_partial_bytes_are_never_published(self) -> None:
+        cases = (
+            (["timeout", 0], None),
+            ([0xC0000374, 0], None),
+            (["timeout", "timeout"], "timed out twice"),
+            ([1], "exited with code 1"),
+        )
+        for outcomes, expected_error in cases:
+            with self.subTest(outcomes=outcomes), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                tool, wad = root / "tool.exe", root / "Test.wad.client"
+                tool.touch()
+                wad.write_bytes(b"previous")
+                attempts = []
+
+                def run(cmd, *, tool, timing_phase, timeout):
+                    staged = Path(cmd[-1])
+                    self.assertFalse(staged.exists())
+                    attempts.append(staged)
+                    outcome = outcomes[len(attempts) - 1]
+                    staged.write_bytes(b"partial")
+                    if outcome == "timeout":
+                        raise subprocess.TimeoutExpired(cmd, timeout)
+                    if outcome:
+                        raise script.ExternalProcessFailed(tool, subprocess.CompletedProcess(cmd, outcome, "", ""))
+                    staged.write_bytes(b"complete")
+                    return subprocess.CompletedProcess(cmd, 0, "", "")
+
+                with patch.object(script, "WAD_MAKE", tool), patch.object(script, "run_external_process", side_effect=run):
+                    if expected_error is None:
+                        script.run_wad_make(root, wad)
+                    else:
+                        with self.assertRaisesRegex(SystemExit, expected_error):
+                            script.run_wad_make(root, wad)
+                self.assertEqual(len(attempts), len(outcomes))
+                self.assertTrue(all(not path.exists() for path in attempts))
+                self.assertEqual(wad.read_bytes(), b"complete" if expected_error is None else b"previous")
 
 
 class ConfigurationTests(unittest.TestCase):
@@ -122,7 +165,7 @@ def write_plan_archive(
     meta_dir = step4 / "META"
     wad_dir.mkdir(parents=True)
     meta_dir.mkdir()
-    (wad_dir / plan.wad_name).write_bytes(b"RWfake-wad")
+    write_test_wad(wad_dir / plan.wad_name, 1, b"PROPfixture", 0, version_minor=4)
     (meta_dir / "info.json").write_text(
         json.dumps(plan.info),
         encoding="utf-8",
@@ -161,7 +204,7 @@ def rebase_fixture(prefix: str) -> dict[str, object]:
                         f"Characters/Annie/Skins/{prefix}",
                         {
                             "ChampionSkinName": prefix,
-                            "mResourceResolver": f"resolver-{prefix}",
+                            "mResourceResolver": f"Characters/Annie/Skins/{prefix}/Resources",
                             "Unrelated": f"keep-{prefix}",
                         },
                     ),
@@ -577,7 +620,7 @@ class ExactSkinSelectionTests(unittest.TestCase):
                 "candidate_official_champion_ids_for_skin_name",
                 return_value=[],
             ),
-            patch.object(script, "get_runtime_catalog", return_value=catalog),
+            patch.object(script, "get_runtime_catalog", return_value=catalog) as get_catalog,
         ):
             selected_base = script.resolve_local_skin_name(
                 base.display_name,
@@ -602,6 +645,16 @@ class ExactSkinSelectionTests(unittest.TestCase):
             selected_chroma_full_id = script.resolve_local_skin_name(
                 "157034",
                 Path("Champions"),
+            )
+            get_catalog.reset_mock()
+            batch = script.resolve_local_skin_names(
+                ("157034", base.display_name, "157034"), Path("Champions"),
+                wad_mode="direct", session_pool=None,
+            )
+            self.assertEqual([skin.skin_number for skin in batch], [34, 9])
+            get_catalog.assert_called_once_with(
+                "Yasuo", catalog.wad_path, Path("Champions"),
+                wad_mode="direct", session_pool=None, skin_numbers=frozenset({9, 34}),
             )
             with self.assertRaisesRegex(SystemExit, "canonical positive decimal"):
                 script.resolve_local_skin_name("0157009", Path("Champions"))
@@ -636,6 +689,8 @@ class StableWadSnapshotTests(unittest.TestCase):
                 version_minor=4,
             )
             prepared = script.PreparedChampionWad(source)
+            extractor = root / "wad-extract.exe"
+            extractor.touch()
 
             def fake_extract(
                 _command: list[str],
@@ -653,6 +708,7 @@ class StableWadSnapshotTests(unittest.TestCase):
                 extracted = script.extract_wad_to_temp_dir(
                     source,
                     work,
+                    wad_extract_path=extractor,
                     expected_wad_identity=prepared.file_identity,
                     expected_toc_digest=prepared.toc_digest,
                 )
@@ -685,11 +741,14 @@ class StableWadSnapshotTests(unittest.TestCase):
                     version_minor=4,
                 )
             other_identity = script.capture_wad_file_identity(other)
+            extractor = root / "wad-extract.exe"
+            extractor.touch()
 
             with self.assertRaises(script.WadChangedDuringRead):
                 script.extract_wad_to_temp_dir(
                     source,
                     work,
+                    wad_extract_path=extractor,
                     expected_wad_identity=other_identity,
                 )
 
@@ -875,6 +934,19 @@ class ArchivePreflightTests(QuietTestCase):
                 / "Goth Annie (Ruby).zip",
             )
 
+    def test_incomplete_wad_is_never_reused_or_copied_to_fantome(self) -> None:
+        header = b"RW\x03\x04" + bytes(264)
+        for wad in (b"RW", header + bytes(4), header + struct.pack("<I", 1)):
+            with self.subTest(size=len(wad)), tempfile.TemporaryDirectory() as temp:
+                plan = make_plan(Path(temp), "both")
+                plan.output_dir.mkdir(parents=True)
+                with zipfile.ZipFile(plan.path_for("zip"), "w") as archive:
+                    archive.writestr("META/info.json", json.dumps(plan.info))
+                    archive.writestr(f"WAD/{plan.wad_name}", wad)
+                preflight = script.preflight_archive_plans([plan], force=False)
+                self.assertEqual(preflight.pending, [plan])
+                self.assertFalse(plan.path_for("fantome").exists())
+
     def test_current_archive_is_cache_hit_and_force_is_pending(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
@@ -963,7 +1035,7 @@ class RebaseTests(QuietTestCase):
         self.assertIs(result, target)
         self.assertEqual(skin_entry["key"], "Characters/Annie/Skins/Skin0")
         self.assertEqual(fields["ChampionSkinName"], "Skin0")
-        self.assertEqual(fields["mResourceResolver"], "resolver-Skin0")
+        self.assertEqual(fields["mResourceResolver"], "Characters/Annie/Skins/Skin0/Resources")
         self.assertEqual(fields["Unrelated"], "keep-Skin1")
         self.assertEqual(
             resolver_entry["key"],
@@ -1181,14 +1253,16 @@ class BatchedConversionTests(QuietTestCase):
                 make_plan(root, "zip", chroma=True),
             ]
             prepared_map: dict[Path, set[str]] = {}
+            target_prop = prop([(SKIN_PROPERTIES, 3, 0, b""), (RESOURCE_RESOLVER, 4, 0, b"")])
+            base_prop = prop([(SKIN_PROPERTIES, 1, 0, b""), (RESOURCE_RESOLVER, 2, 0, b"")])
             for plan in plans:
                 unit_dir = plan.work_dir / "annie"
                 unit_dir.mkdir(parents=True)
-                (unit_dir / "skin0.bin").write_bytes(b"PROPbase")
+                (unit_dir / "skin0.bin").write_bytes(base_prop)
                 (
                     unit_dir
                     / f"skin{plan.skin.skin_number}.bin"
-                ).write_bytes(b"PROPtarget")
+                ).write_bytes(target_prop)
                 prepared_map[plan.work_dir] = {"annie"}
 
             tool = root / "ritobin.exe"
@@ -1222,7 +1296,7 @@ class BatchedConversionTests(QuietTestCase):
                             encoding="utf-8",
                         )
                     else:
-                        item.destination.write_bytes(b"PROPbatched")
+                        item.destination.write_bytes(base_prop)
 
             with (
                 script.use_operations(operations),
@@ -1298,7 +1372,7 @@ class BatchedConversionTests(QuietTestCase):
             for item in unit_work:
                 self.assertEqual(
                     item.final_bin.read_bytes(),
-                    b"PROPbatched",
+                    base_prop,
                 )
                 modified = json.loads(
                     item.modified_json.read_text(encoding="utf-8")
@@ -1356,9 +1430,7 @@ class LegacyCatalogIdentityTests(QuietTestCase):
 
             def stop_after_selection(
                 src_dir: Path,
-                _dst_dir: Path,
-                _in_fmt: str,
-                _out_fmt: str,
+                _temp_dir: Path,
             ) -> None:
                 selected_sources.append(src_dir)
                 raise RuntimeError("selection captured")
@@ -1381,7 +1453,7 @@ class LegacyCatalogIdentityTests(QuietTestCase):
                 ),
                 patch.object(
                     script,
-                    "run_ritobin_dir_quiet",
+                    "collect_extracted_catalog_rows",
                     side_effect=stop_after_selection,
                 ),
                 self.assertRaisesRegex(RuntimeError, "selection captured"),
@@ -1458,6 +1530,24 @@ class LegacyCatalogIdentityTests(QuietTestCase):
 
 
 class RunEarlySkipTests(QuietTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        for name, filename in (
+            ("RITOBIN_CLI", "ritobin.exe"), ("WAD_MAKE", "wad-make.exe"),
+            ("HASHES_GAME_PATH", "hashes.game.txt"), ("HASH_SKIN_INDEX_PATH", "index.json"),
+            ("INPUT_ROOT", "input"), ("OUTPUT_ROOT", "output"),
+        ):
+            patcher = patch.object(script, name, root / filename)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        script.RITOBIN_CLI.touch()
+        script.WAD_MAKE.touch()
+        base = "data/characters/annie/skins/skin0.bin"
+        script.HASHES_GAME_PATH.write_text(f"{script.wad_path_hash(base):016x} {base}\n", encoding="ascii")
+
     def test_run_discards_session_and_restarts_once_when_wad_changes(
         self,
     ) -> None:

@@ -1,12 +1,38 @@
 # Benchmark 与本地验证
 
-`benchmarks/` 保存本地验证使用的固定输入定义。结果与生成时的客户端、WAD、工具和机器
-环境绑定。Pipeline 与历史 Git benchmark 默认使用 Git 已忽略的 `.benchmarks/` 作为工作
-目录；下文示例将报告写入同样被忽略的 `.cache/`。两者都不参与普通皮肤包生成，也不提交
-到仓库。
+`benchmarks/` 保存项目的固定测试输入。基准工具使用 `.benchmarks/` 作为临时工作目录，
+下文示例将报告写入 `.cache/benchmarks/` 和 `.cache/audits/`。核对结果后可删除这三个目录。
+程序使用的皮肤路径索引和字典更新状态保存在 `.cache/` 顶层。
 
-仓库中的 pool 对应 16.14 和 16.15 客户端。使用 pool 的命令仅在其 `gameVersion` 与本地
+仓库中的 pool 对应 16.14、16.15 和 16.22 客户端。使用 pool 的命令仅在其 `gameVersion` 与本地
 客户端一致时运行。没有匹配的 pool 时，应记录新 pool，不要修改已有 pool 的预期值。
+
+`client-16.22-six` 对应客户端 `16.22.834.8910`，包含 Annie、Heimerdinger、Wukong、
+Locke、Zoe 和 Ahri。预期生成 277 个皮肤及炫彩包，合计 603 对 BIN。每对 BIN 对应同一
+单位的目标皮肤和默认皮肤。
+
+## 16.22 验证范围
+
+在 `16.22.834.8910` 上，六位英雄的 277 个包全部通过首次生成、已有包复用、
+保留派生缓存重新生成，以及最终包内容核验。
+
+另一项源文件检查覆盖 173 位英雄。它从本地客户端读到 9,095 个非默认皮肤及炫彩的完整
+`skin_id`，在运行结果中记作 `fullSkinId`。例如 DJ Sona 的 `skin_id` 为 `37006`，
+英雄 ID 为 `37`，英雄内序号 `skinNumber` 为 `6`，对应目标文件 `skin6.bin`。
+逐项比对后，9,095 个名称和 7,126 个炫彩的归属均与客户端一致。另选 8 个 ID 实际打包，
+包内 21 个单位 BIN 与基准逐字节一致，第二次运行时 8 个包全部命中缓存。
+
+全部 15,060 份基础和目标 BIN 都能读取身份字段，用原身份记录重组后与源文件逐字节一致。
+`client-16.22-resource-layouts` 收录之前受影响的 11 位英雄的全部 617 款皮肤和炫彩。
+共核验 1,329 对单位 BIN，包含原先受影响的 420 个完整 `skin_id` 和对应的 428 对 BIN。
+复测时，Pipeline 和 Source Golden 均使用 `benchmarks/pools/client-16.22-resource-layouts.json`。
+
+逐包追踪这 428 对文件，其中 150 对沿用原皮肤省略资源链接的写法，其余 278 对均能找到
+与原皮肤内容逐字节一致的资源表。只有两个皮肤 ID 需要补文件依赖。
+
+DJ Sona（`37006`）的附属单位沿用默认形态省略名称的写法。璐璐的变形单位可继续使用
+共享文件。斯维因的恶魔形态在 `50001` 跟随同包本体的资源链接，在 `50002` 和 `50003`
+则显式引用已确认提供资源的 `skin1.bin`。
 
 ## 目录
 
@@ -36,7 +62,7 @@ workload：
 ```powershell
 uv run python -B tools/benchmark_pipeline.py `
   --phase local-check `
-  --pool benchmarks/pools/hash-upgrade-fast5.json `
+  --pool benchmarks/pools/client-16.22-six.json `
   --scenarios app-cold-build,output-cache-hit `
   --include-derived-warm `
   --result .cache/benchmarks/pipeline.json
@@ -50,12 +76,14 @@ uv run python -B tools/benchmark_pipeline.py `
 
 ## Golden 验证
 
-Source Golden 记录源 WAD 中需要验证的 BIN；Output Golden 检查生成包中的 WAD path、
-paired unit、身份字段及其与目标内容的关系：
+Source Golden 记录客户端 WAD 中每个必要 BIN 的路径和摘要。Output Golden 核对生成包的
+数量、皮肤 ID、包内 WAD 路径和默认身份，再逐单位核对资源链接的提供方。其余属性、
+资源映射表的字节、记录顺序及原有依赖均与目标皮肤比对。每条新增文件依赖都须在源 WAD
+中提供所引用的资源表。
 
 ```powershell
 uv run python -B tools/golden_local.py `
-  --pool benchmarks/pools/hash-upgrade-fast5.json `
+  --pool benchmarks/pools/client-16.22-six.json `
   --output .cache/benchmarks/source-golden.json
 
 uv run python -B tools/golden_outputs.py `

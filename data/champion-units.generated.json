@@ -25,7 +25,9 @@
       "alias": "Galio",
       "wadBase": "Galio",
       "mainUnit": "galio",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_galio"
+      ]
     },
     "4": {
       "alias": "TwistedFate",
@@ -39,7 +41,9 @@
       "alias": "XinZhao",
       "wadBase": "XinZhao",
       "mainUnit": "xinzhao",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_xinzhao"
+      ]
     },
     "6": {
       "alias": "Urgot",
@@ -321,7 +325,8 @@
       "wadBase": "Irelia",
       "mainUnit": "irelia",
       "auxiliaryUnits": [
-        "ireliablades"
+        "ireliablades",
+        "jade_irelia"
       ]
     },
     "40": {
@@ -353,7 +358,9 @@
       "alias": "Karma",
       "wadBase": "Karma",
       "mainUnit": "karma",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_karma"
+      ]
     },
     "44": {
       "alias": "Taric",
@@ -384,6 +391,8 @@
       "wadBase": "Swain",
       "mainUnit": "swain",
       "auxiliaryUnits": [
+        "jade_swain",
+        "jade_swaindemonform",
         "swaindemonform"
       ]
     },
@@ -392,7 +401,9 @@
       "wadBase": "Caitlyn",
       "mainUnit": "caitlyn",
       "auxiliaryUnits": [
-        "caitlyntrap"
+        "caitlyntrap",
+        "jade_caitlyn",
+        "jade_caitlyntrap"
       ]
     },
     "53": {
@@ -457,7 +468,10 @@
       "mainUnit": "elise",
       "auxiliaryUnits": [
         "elisespider",
-        "elisespiderling"
+        "elisespiderling",
+        "jade_elise",
+        "jade_elisespider",
+        "jade_elisespiderling"
       ]
     },
     "61": {
@@ -569,7 +583,9 @@
       "alias": "Poppy",
       "wadBase": "Poppy",
       "mainUnit": "poppy",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_poppy"
+      ]
     },
     "79": {
       "alias": "Gragas",
@@ -599,13 +615,19 @@
       "alias": "Mordekaiser",
       "wadBase": "Mordekaiser",
       "mainUnit": "mordekaiser",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_mordekaiser"
+      ]
     },
     "83": {
       "alias": "Yorick",
       "wadBase": "Yorick",
       "mainUnit": "yorick",
       "auxiliaryUnits": [
+        "jade_yorick",
+        "jade_yorickeghoul",
+        "jade_yorickqghoul",
+        "jade_yorickwghoul",
         "yorickbigghoul",
         "yorickghoulmelee",
         "yorickwghoul",
@@ -713,6 +735,8 @@
       "wadBase": "Shyvana",
       "mainUnit": "shyvana",
       "auxiliaryUnits": [
+        "jade_shyvana",
+        "jade_shyvanadragon",
         "shyvanadragon"
       ]
     },
@@ -728,7 +752,9 @@
       "alias": "Graves",
       "wadBase": "Graves",
       "mainUnit": "graves",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_graves"
+      ]
     },
     "105": {
       "alias": "Fizz",
@@ -736,14 +762,19 @@
       "mainUnit": "fizz",
       "auxiliaryUnits": [
         "fizzbait",
-        "fizzshark"
+        "fizzshark",
+        "jade_fizz",
+        "jade_fizzbait",
+        "jade_fizzshark"
       ]
     },
     "106": {
       "alias": "Volibear",
       "wadBase": "Volibear",
       "mainUnit": "volibear",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_volibear"
+      ]
     },
     "107": {
       "alias": "Rengar",
@@ -761,7 +792,9 @@
       "alias": "Nautilus",
       "wadBase": "Nautilus",
       "mainUnit": "nautilus",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_nautilus"
+      ]
     },
     "112": {
       "alias": "Viktor",
@@ -781,7 +814,9 @@
       "alias": "Fiora",
       "wadBase": "Fiora",
       "mainUnit": "fiora",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_fiora"
+      ]
     },
     "115": {
       "alias": "Ziggs",
@@ -811,7 +846,9 @@
       "alias": "Hecarim",
       "wadBase": "Hecarim",
       "mainUnit": "hecarim",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_hecarim"
+      ]
     },
     "121": {
       "alias": "Khazix",
@@ -850,6 +887,8 @@
       "wadBase": "Quinn",
       "mainUnit": "quinn",
       "auxiliaryUnits": [
+        "jade_quinn",
+        "jade_quinnvalor",
         "quinnvalor"
       ]
     },
@@ -1032,7 +1071,9 @@
       "alias": "Lucian",
       "wadBase": "Lucian",
       "mainUnit": "lucian",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_lucian"
+      ]
     },
     "238": {
       "alias": "Zed",
@@ -1073,13 +1114,17 @@
       "alias": "Aatrox",
       "wadBase": "Aatrox",
       "mainUnit": "aatrox",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_aatrox"
+      ]
     },
     "267": {
       "alias": "Nami",
       "wadBase": "Nami",
       "mainUnit": "nami",
-      "auxiliaryUnits": []
+      "auxiliaryUnits": [
+        "jade_nami"
+      ]
     },
     "268": {
       "alias": "Azir",

@@ -188,6 +188,7 @@ def run_bounded_recursive_batches(
     run_batch: BatchRunner,
     diagnose: DiagnosticRunner,
     isolate_above_bytes: int | None = None,
+    stage_input: Callable[[Path, Path], object] = shutil.copyfile,
 ) -> RitobinBatchReport:
     validated = validate_batch_items(
         items,
@@ -219,7 +220,7 @@ def run_bounded_recursive_batches(
             for item in batch:
                 staged = input_root / Path(*PurePosixPath(item.relative_path).parts)
                 staged.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(item.source, staged)
+                stage_input(item.source, staged)
 
             run_error: Exception | None = None
             try:

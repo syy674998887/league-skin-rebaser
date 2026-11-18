@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "poolId": "client-16.22-six",
+  "gameVersion": "16.22.834.8910",
+  "description": "Installed-client skin and chroma IDs with main and auxiliary BIN pairs verified against the champion WADs.",
+  "osPageCachePolicy": "uncontrolled",
+  "champions": [
+    {
+      "championId": 1, "query": "Annie", "wadName": "Annie.wad.client", "mainUnit": "annie",
+      "cases": ["multi-unit", "paired-pet", "wide-material-hash"],
+      "skinSet": {"ranges": [[1, 60]], "exclude": [21]},
+      "skinCount": 59, "pairedCount": 152, "uniqueBaseCount": 4,
+      "legacyExpectation": "success", "directExpectation": "success"
+    },
+    {
+      "championId": 74, "query": "Heimerdinger", "wadName": "Heimerdinger.wad.client", "mainUnit": "heimerdinger",
+      "cases": ["multi-unit", "partial-catalog-regression"],
+      "skinSet": {"ranges": [[1, 34]], "exclude": [7, 8, 9, 10, 11, 12, 13, 14]},
+      "skinCount": 26, "pairedCount": 120, "uniqueBaseCount": 5,
+      "legacyExpectation": "success", "directExpectation": "success"
+    },
+    {
+      "championId": 62, "query": "Wukong", "wadName": "MonkeyKing.wad.client", "mainUnit": "monkeyking",
+      "cases": ["ui-wad-main-alias", "partial-catalog-regression"],
+      "skinSet": {"ranges": [[1, 36]], "exclude": [28]},
+      "skinCount": 35, "pairedCount": 126, "uniqueBaseCount": 4,
+      "legacyExpectation": "success", "directExpectation": "success"
+    },
+    {
+      "championId": 805, "query": "Locke", "wadName": "Locke.wad.client", "mainUnit": "locke",
+      "cases": ["wide-material-hash", "empty-catalog-regression"],
+      "skinSet": {"ranges": [[1, 9]], "exclude": []},
+      "skinCount": 9, "pairedCount": 18, "uniqueBaseCount": 2,
+      "legacyExpectation": "success", "directExpectation": "success"
+    },
+    {
+      "championId": 142, "query": "Zoe", "wadName": "Zoe.wad.client", "mainUnit": "zoe",
+      "cases": ["per-skin-auxiliary", "empty-catalog-regression"],
+      "skinSet": {"ranges": [[1, 44]], "exclude": []},
+      "skinCount": 44, "pairedCount": 54, "uniqueBaseCount": 2,
+      "legacyExpectation": "success", "directExpectation": "success"
+    },
+    {
+      "championId": 103, "query": "Ahri", "wadName": "Ahri.wad.client", "mainUnit": "ahri",
+      "cases": ["wide-material-hash", "dictionary-coverage"],
+      "skinSet": {"ranges": [[1, 105]], "exclude": [87]},
+      "skinCount": 104, "pairedCount": 133, "uniqueBaseCount": 2,
+      "legacyExpectation": "success", "directExpectation": "success"
+    }
+  ],
+  "totals": {
+    "champions": 6, "skins": 277, "paired": 603, "uniqueBase": 19,
+    "currentRebaseRitobinProcesses": 1809, "phase5LogicalConversions": 1225
+  },
+  "commonSuccess": {"excludeChampionIds": [], "champions": 6, "skins": 277, "paired": 603, "uniqueBase": 19}
+}

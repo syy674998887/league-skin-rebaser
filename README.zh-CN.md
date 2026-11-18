@@ -39,16 +39,21 @@ Copy-Item config.example.json config.json
 
 uv sync
 .\setup.bat
-uv run rebaser
+uv run rebaser --hash-update auto
 ```
 
 `uv sync` 会创建项目环境并安装依赖。[`setup.bat`](setup.bat) 会把固定版本的
 Ritobin 和 CSLoL 工具下载到 `bin/` 与 `cslol-tools/`，并在解压前校验 SHA-256。
 这些安装步骤会访问网络。
 
-不带参数运行时，`rebaser` 会交互选择英雄或精确的皮肤/炫彩。
+首次运行及游戏更新后，使用 `--hash-update auto` 刷新路径字典，让程序能找到新皮肤和附属单位。
+字典补齐皮肤路径后，下次用 Legacy 模式生成对应皮肤时会自动重建旧包。
+之后可离线运行 `uv run rebaser`，使用本地字典交互选择英雄、皮肤或炫彩。
 
 ## 使用方式
+
+运行 `uv run rebaser`，选 `2` 后可输入完整 `skin_id`、官方全名，或英雄内序号加英雄名（如 `skin6 Sona`）。
+输入 `37006` 生成 DJ Sona，输入 `37006,50002` 可同时生成 DJ Sona 和 Bilgewater Swain。
 
 无需交互，为 Ahri 的全部非经典皮肤和炫彩生成模组：
 
@@ -71,7 +76,7 @@ uv run rebaser --help
 
 ## 输出
 
-模组默认写入 `output/<Champion>/<Base Skin>/`；炫彩会增加一个以炫彩名称命名的目录。
+模组默认写入 `output/<Champion>/<Base Skin>/`。客户端列出的炫彩会放在所属皮肤目录下，以炫彩名称建子目录。
 ZIP 和 Fantome 输出都是标准 ZIP 容器，内部结构为：
 
 ```text
@@ -83,9 +88,17 @@ WAD/<Champion>.wad.client
 
 ## 支持边界
 
-- Direct 模式支持 WAD v3.0-v3.4，以及不含 subchunk 的 Raw、GZip 和单帧 Zstandard
-  required chunk。
-- 所需 chunk 使用 Satellite 或 ZstdMulti 时不受支持；未知 WAD 版本和损坏输入会被拒绝。
+- 支持 PROP 版本 1–3。生成时沿用默认皮肤的身份和名称字段。默认皮肤省略名称时，
+  输出也省略该字段。材质和资源映射表的内容按原始字节保留。
+- 按完整 `skin_id` 或官方全名选择时，只检查所选皮肤和必需的文件。按英雄生成时，会检查该英雄的全部已安装皮肤。
+  如果缺少必需的转换结果，或字典漏收了对应路径，程序会报出受影响的皮肤并停止生成。
+- 打包工具写入临时 WAD。单次超过 120 秒或遇到已知的 Windows 原生工具崩溃时，
+  会换一个临时文件重试一次，成功后才发布。
+- 资源可由皮肤自身、共享文件或同包其他单位提供，也可以省略资源链接。程序按实际引用
+  找到对应的资源表。单位借用另一款皮肤的资源时，先在客户端 WAD 核实提供方，再补上
+  文件依赖。[16.22 验证范围](benchmarks/README.zh-CN.md#1622-验证范围)
+- Direct 模式支持 WAD v3.0–v3.4，可读取未分块的 Raw、GZip 和单帧 Zstandard 数据。
+  如果所需数据块使用 Satellite 或 ZstdMulti，或 WAD 版本未知、结构损坏，程序会报错。
 - Direct 模式不会自动回退；需要使用本地安装的 `wad-extract.exe` 时，请显式选择
   `--wad-mode legacy`。
 

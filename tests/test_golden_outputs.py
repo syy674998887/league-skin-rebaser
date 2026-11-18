@@ -11,7 +11,9 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+from helpers.synthetic_prop import prop
 from helpers.synthetic_wad import SyntheticChunk, write_synthetic_wad
+from rebaser.skin_bin import RESOURCE_RESOLVER, SKIN_PROPERTIES
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "tools" / "golden_outputs.py"
@@ -27,7 +29,7 @@ def identity_payload(
     skin_key: int = 10,
     skin_name: str = "Annie",
     resolver_link: int = 20,
-    resolver_key: int = 30,
+    resolver_key: int = 20,
 ) -> dict[str, object]:
     return {
         "entries": {
@@ -163,7 +165,8 @@ class FixedDictionaryTests(unittest.TestCase):
             int(pair["basePathHash"], 16),
         )
         self.assertEqual(identity["dictionaryResolvedPathCount"], 0)
-        self.assertEqual(identity["computedDirectPathCount"], 1)
+        self.assertEqual(resolved[pair["targetPath"]], int(pair["targetPathHash"], 16))
+        self.assertEqual(identity["computedDirectPathCount"], 2)
 
 
 class SourceGoldenTests(unittest.TestCase):
@@ -308,6 +311,33 @@ class OutputArchiveTests(unittest.TestCase):
 
 
 class SemanticTests(unittest.TestCase):
+    def test_external_cross_skin_dependency_is_bound_to_its_real_resolver(self) -> None:
+        path = "data/characters/swain/skins/skin1.bin"
+        link = "Characters/Swain/Skins/Skin1/Resources"
+        context = golden_outputs.OutputContext("Swain", 2, "swaindemonform", "provider")
+        owners = {100: {"swain"}}
+        target = {"linked": {"value": {"items": ["source.bin"]}}}
+        source = {path: (identity_payload(resolver_key=golden_outputs.bin_key(link)), b"json")}
+        args = (target, link, 100, "swaindemonform", owners)
+        self.assertEqual(golden_outputs.expected_dependencies(*args, {}, source, context), ["source.bin", path])
+        self.assertEqual(golden_outputs.expected_dependencies(*args, {golden_outputs.bin_key(link): 100}, source, context), ["source.bin"])
+        with self.assertRaisesRegex(golden_outputs.OutputGoldenError, "does not define"):
+            golden_outputs.expected_dependencies(*args, {}, {path: (identity_payload(), b"json")}, context)
+
+    def test_preserved_target_data_detects_changed_content_links_and_order(self) -> None:
+        main = (SKIN_PROPERTIES, 1, 0, b"")
+        resolver = (RESOURCE_RESOLVER, 2, 0, b"")
+        material = (0xFF9D3409, 3, 0, b"")
+        entries = [main, material, resolver]
+        reference = golden_outputs.preserved_target_data(prop(entries))
+        for changed in (
+            prop([main, (0xFF9D3409, 4, 0, b""), resolver]),
+            prop([main, resolver, material]),
+            prop(entries, links=(b"Changed.bin",)),
+        ):
+            with self.subTest(data=changed):
+                self.assertNotEqual(reference, golden_outputs.preserved_target_data(changed))
+
     def test_four_identity_fields_are_extracted(self) -> None:
         context = golden_outputs.OutputContext("Annie", 1, "annie", "semantic")
         result = golden_outputs.extract_identity_fields(
@@ -321,7 +351,7 @@ class SemanticTests(unittest.TestCase):
                 "skinCharacterDataPropertiesEntryKey": 10,
                 "championSkinName": "Annie",
                 "mResourceResolver": 20,
-                "resourceResolverEntryKey": 30,
+                "resourceResolverEntryKey": 20,
             },
         )
 
@@ -338,19 +368,16 @@ class SemanticTests(unittest.TestCase):
             expected_units={"annie": pair},
             expected_path_hashes={pair.base_path: 1},
         )
-        output_keys = {(1, "annie"): "output"}
-        base_keys = {("annie", pair.base_sha256): "base"}
         converted = {
-            "output": (identity_payload(), b"output-json"),
-            "base": (identity_payload(skin_name="Different"), b"base-json"),
+            f"output:{pair.target_path}": (identity_payload(), b"output-json"),
+            pair.base_path: (identity_payload(skin_name="Different"), b"base-json"),
+            pair.target_path: (identity_payload(skin_name="Target"), b"target-json"),
         }
 
         with self.assertRaises(golden_outputs.OutputGoldenError) as caught:
             golden_outputs.archive_record(
                 collected,
                 converted,
-                output_keys,
-                base_keys,
             )
 
         message = str(caught.exception)
@@ -361,6 +388,15 @@ class SemanticTests(unittest.TestCase):
             "stage=rebased-bin-semantics",
         ):
             self.assertIn(value, message)
+
+        target = identity_payload(skin_name="Target")
+        target["entries"]["value"]["items"][1]["value"]["items"].append(
+            {"key": "resourceMap", "value": "target-particle"}
+        )
+        converted[pair.base_path] = (identity_payload(), b"base-json")
+        converted[pair.target_path] = (target, b"target-json")
+        with self.assertRaisesRegex(golden_outputs.OutputGoldenError, "non-identity properties differ"):
+            golden_outputs.archive_record(collected, converted)
 
 
 class BindingTests(unittest.TestCase):

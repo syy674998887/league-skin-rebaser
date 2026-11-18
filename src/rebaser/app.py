@@ -1,52 +1,8 @@
-"""Automated League of Legends skin rebaser.
+"""Select installed League of Legends skins and build CSLoL ZIP or Fantome archives.
 
-Project layout (relative to the project root):
-
-    config.json              {"lol_path": "..."} (auto-created on first run)
-    input/
-        <skin name>/
-            <unit>/                     (auto-extracted; name = unit,
-                                         lowercase, e.g. "annie",
-                                         "annietibbers")
-                skin0.bin               (base skin)
-                skin<N>.bin             (target skin, N != 0)
-            <unit2>/                    (optional: summons / additional units)
-                ...
-            step1/<unit>/        skin0.json, skin<N>.json   (dumped, per unit)
-            step2/<unit>/        skin<N>_modified.json      (replaced, per unit)
-            step3/               data/characters/<unit>/skins/skin0.bin
-            step4/               WAD/<Champion>.wad.client, META/info.json
-    output/
-        <Champion>/              (champion WAD name, e.g. "JarvanIV")
-            <base skin>/
-                <base skin>.<zip|fantome>
-                <chroma>/
-                    <chroma>.<zip|fantome>
-
-Behavior:
-    - On first run, prompts for LoL install path and saves to config.json.
-    - Prompts for a mode:
-        1) champion - input one champion name; every non-classic entry of that
-           champion is processed, including chromas.
-        2) skin     - input exact skin/chroma names, canonical full skin IDs,
-           or `skin<N> <Champion>`, comma-separated; each match is processed
-           independently without expanding its group.
-      Reads local champion WAD metadata and treats every skin/chroma ID as a
-      separate selectable entry.
-    - Extracts skin0.bin + skin<N>.bin from the champion WAD found in
-      <LoL path>/Game/DATA/FINAL/Champions/ (all matching units auto-discovered).
-    - Multi-unit support: champions with summons (Annie+Tibbers, etc.) get one
-      subfolder per unit; all units are packed into a single WAD.
-    - Main champion identity comes from the local official LCU roster and is
-      verified against the exact champion WAD.
-    - Author is hardcoded to "Untargetable".
-    - Archive output defaults to .zip. Use --format fantome or --format both
-      to generate cslol-compatible .fantome output.
-    - Existing selected outputs are validated before prepare/extract. Use
-      --force to rebuild them regardless of the cache result.
-    - Uses the local hashes.game dictionary without networking by default. Use
-      --hash-update auto or --hash-update force to check/download explicitly.
-    - A timing summary is printed after success or failure.
+The local client supplies skin names and chroma parents. Direct mode binds the
+selected WAD inputs before checking existing archives. Each rebuilt archive
+contains one WAD with the selected skin's main and auxiliary units.
 """
 
 from __future__ import annotations
@@ -63,12 +19,12 @@ import tempfile
 import zipfile
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import wraps
 from pathlib import Path
 from time import perf_counter_ns
 from types import MappingProxyType
-from typing import Any, Callable, Iterator, Mapping
+from typing import Any, Callable, Iterable, Iterator, Mapping
 
 from .champion_layout import (
     CandidateRegistry,
@@ -128,6 +84,8 @@ from .hash_skin_index import (
 )
 
 from .paths import DATA_ROOT, PROJECT_ROOT
+from .skin_bin import SkinBin, SkinBinError
+from .skin_identity import SkinIdentity, bin_key, peer_skin_path, resolver_remaps
 
 
 # Keep the public name for compatibility.  It now deliberately means the
@@ -152,22 +110,20 @@ DERIVED_CACHE_ROOT = CACHE_ROOT / "derived"
 CONFIG_PATH = SCRIPT_DIR / "config.json"
 AUTHOR = "Untargetable"
 MOD_DESCRIPTION = "Generated from local League of Legends game files"
-REBASE_SCHEMA_VERSION = 2
-# v2 binds base snapshots to the exact-output recursive batch implementation.
-BASE_PARSE_PARSER_SCHEMA_VERSION = 2
+REBASE_SCHEMA_VERSION = 4
+BASE_PARSE_PARSER_SCHEMA_VERSION = 4
 CATALOG_CACHE_SCHEMA_VERSION = 1
-CATALOG_PARSER_SCHEMA_VERSION = 1
+CATALOG_PARSER_SCHEMA_VERSION = 4
 LAYOUT_CACHE_SCHEMA_VERSION = 1
 ARCHIVE_FINGERPRINT_SCHEMA_VERSION = 2
 # The byte ceiling remains the hard resource bound. Real dynamic-cohort probes
 # established that 128 small files are safe and avoid unnecessary tool starts.
 RITOBIN_BATCH_MAX_FILES = 128
-# Elementalist Lux currently produces a roughly 68.7 MiB modified JSON file.
-# Permit bounded growth above the old 64 MiB ceiling, but isolate any such
-# source so it cannot share a recursive Ritobin process with other inputs.
+# Large source files get their own Ritobin process within the batch byte limit.
 RITOBIN_BATCH_ISOLATE_ABOVE_BYTES = 64 * 1024 * 1024
 RITOBIN_BATCH_MAX_INPUT_BYTES = 80 * 1024 * 1024
 WAD_CLIENT_SUFFIX = ".wad.client"
+WAD_MAKE_TIMEOUT_SECONDS = 120
 LOL_CHAMPIONS_REL = Path("Game") / "DATA" / "FINAL" / "Champions"
 LCU_GAME_DATA_REL = Path("Plugins") / "rcp-be-lol-game-data"
 CHAMPION_UNITS_PATH = DATA_ROOT / "champion-units.generated.json"
@@ -189,11 +145,15 @@ from .wad_access import (
     PreparedChampionWad,
     UnsupportedWadFeature,
     UnsupportedWadVersion,
+    WAD_ENTRY_SIZE,
+    WAD_HEADER_SIZE,
+    WAD_MAGIC,
     WadChangedDuringRead,
     WadChunk,
     WadError,
     WadFileIdentity,
     WadIndex,
+    WadVersion,
     capture_wad_file_identity,
     decode_wad_chunk as decode_wad_chunk_core,
     normalize_wad_path,
@@ -414,6 +374,7 @@ def run_external_process(
     tool: str,
     timing_phase: str,
     cwd: Path | None = None,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
     count_operation("process.attempts", tool=tool)
     try:
@@ -423,6 +384,7 @@ def run_external_process(
                 cwd=cwd,
                 capture_output=True,
                 text=True,
+                timeout=timeout,
             )
             if result.returncode != 0:
                 raise ExternalProcessFailed(tool, result)
@@ -558,6 +520,7 @@ class ChampionRuntimeSession:
     hash_skin_index: HashSkinIndex | None = None
     hash_skin_candidates: HashSkinCandidateSet | None = None
     catalog: LocalCatalog | None = None
+    catalog_scope: frozenset[int] | None = None
     main_skin_records: tuple[HashSkinRecord, ...] = ()
     legacy_temp: Any | None = None
     legacy_extracted_root: Path | None = None
@@ -610,6 +573,7 @@ class ChampionSessionPool:
         self,
         champion_name: str,
         wad_path: Path,
+        skin_numbers: frozenset[int] | None = None,
     ) -> LocalCatalog:
         existing = next(
             (
@@ -620,16 +584,16 @@ class ChampionSessionPool:
             None,
         )
         if existing is not None:
-            if existing.catalog is None:
-                raise ChampionLayoutError(
-                    f"champion session for {champion_name} has no catalog"
-                )
+            # A change after earlier selections must restart the whole selection.
             assert_runtime_session_source_current(existing)
-            count_operation(
-                "cache.catalog.hits",
-                champion=champion_name,
-                backend=existing.backend,
-            )
+            if existing.catalog is not None and (
+                existing.catalog_scope is None
+                or (skin_numbers is not None and skin_numbers <= existing.catalog_scope)
+            ):
+                count_operation("cache.catalog.hits", champion=champion_name, backend=existing.backend)
+                return existing.catalog
+            existing.catalog = build_runtime_catalog(existing, skin_numbers)
+            existing.catalog_scope = skin_numbers
             return existing.catalog
 
         last_change: WadChangedDuringRead | None = None
@@ -637,19 +601,17 @@ class ChampionSessionPool:
             session: ChampionRuntimeSession | None = None
             try:
                 session = create_runtime_champion_session(
-                    champion_name,
-                    wad_path,
-                    self.wad_mode,
+                    champion_name, wad_path, self.wad_mode,
                     persistent_cache=self.persistent_cache,
                     hash_skin_index=self.hash_skin_index,
                 )
-                catalog = build_runtime_catalog(session)
                 if session.identity.champion_id in self._sessions:
                     raise ChampionIdentityError(
-                        f"champion id {session.identity.champion_id} "
-                        "resolved to multiple runtime sessions"
+                        f"champion id {session.identity.champion_id} resolved to multiple runtime sessions"
                     )
+                catalog = build_runtime_catalog(session, skin_numbers)
                 session.catalog = catalog
+                session.catalog_scope = skin_numbers
                 self._sessions[session.identity.champion_id] = session
                 return catalog
             except WadChangedDuringRead as exc:
@@ -676,6 +638,7 @@ class OfficialSkinRef:
 class OfficialNameCatalog:
     champion_id: int
     names_by_skin_number: Mapping[int, str]
+    chroma_parents: Mapping[int, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -1307,6 +1270,7 @@ def parse_official_name_catalog(
 
     names: dict[int, str] = {}
     sources: dict[int, str] = {}
+    chroma_parents: dict[int, int] = {}
 
     def add_record(
         raw_id: object,
@@ -1397,14 +1361,16 @@ def parse_official_name_catalog(
                     f"{skin_source}.chromas[{chroma_index}] must be a "
                     "JSON object"
                 )
-            add_record(
+            chroma_id, _ = add_record(
                 chroma_data.get("id"),
                 chroma_data.get("name"),
                 f"{skin_source}.chromas[{chroma_index}]",
             )
+            chroma_parents[chroma_id % 1000] = parent_record[0] % 1000
     return OfficialNameCatalog(
         champion_id=champion_id,
-        names_by_skin_number=MappingProxyType(dict(names)),
+        names_by_skin_number=MappingProxyType(names),
+        chroma_parents=MappingProxyType(chroma_parents),
     )
 
 
@@ -1629,6 +1595,14 @@ def find_input_units(skin_dir: Path, only_units: set[str] | None = None) -> list
     return results
 
 
+def stage_skin_view(source: Path, destination: Path, *, payload: bytes | None = None) -> None:
+    try:
+        data = source.read_bytes() if payload is None else payload
+        destination.write_bytes(SkinBin.parse(data).ritobin_view())
+    except SkinBinError as exc:
+        raise SkinBinError(f"{source}: {exc}") from exc
+
+
 def run_ritobin_recursive_conversion(
     source_dir: Path,
     destination_dir: Path,
@@ -1682,13 +1656,17 @@ def diagnose_ritobin_batch_item(
         dir=INPUT_ROOT,
     ) as temp_name:
         output = Path(temp_name) / f"output.{out_fmt}"
+        source = item.source
+        if in_fmt == "bin":
+            source = Path(temp_name) / "input.bin"
+            stage_skin_view(item.source, source)
         cmd = [
             str(RITOBIN_CLI),
             "-i",
             in_fmt,
             "-o",
             out_fmt,
-            str(item.source),
+            str(source),
             str(output),
         ]
         try:
@@ -1763,6 +1741,7 @@ def run_ritobin_batches(
         isolate_above_bytes=RITOBIN_BATCH_ISOLATE_ABOVE_BYTES,
         run_batch=run_ritobin_recursive_conversion,
         diagnose=diagnose_ritobin_batch_item,
+        stage_input=stage_skin_view if in_fmt == "bin" else shutil.copyfile,
     )
     count_operation(
         "ritobin.batch.completed_batches",
@@ -1787,18 +1766,32 @@ def run_ritobin_batches(
 def run_wad_make(src_dir: Path, dst_wad: Path) -> None:
     if not WAD_MAKE.exists():
         sys.exit(f"wad-make.exe not found at {WAD_MAKE}")
-    cmd = [str(WAD_MAKE), str(src_dir), str(dst_wad)]
-    log(f"$ {' '.join(cmd)}", "wad-make")
-    try:
-        result = run_external_process(
-            cmd,
-            tool="wad-make",
-            timing_phase="wad.make",
-        )
-    except ExternalProcessFailed as exc:
-        log_process_output(exc.result, "wad-make")
-        sys.exit(f"wad-make exited with code {exc.result.returncode}")
-    log_process_output(result, "wad-make")
+    for attempt in range(2):
+        # An interrupted tool can leave a full-looking but incomplete WAD.
+        with tempfile.TemporaryDirectory(dir=dst_wad.parent, prefix=".wad-make-") as temp:
+            staged = Path(temp) / dst_wad.name
+            cmd = [str(WAD_MAKE), str(src_dir), str(staged)]
+            log(f"$ {' '.join(cmd)}", "wad-make")
+            try:
+                result = run_external_process(
+                    cmd, tool="wad-make", timing_phase="wad.make", timeout=WAD_MAKE_TIMEOUT_SECONDS,
+                )
+            except subprocess.TimeoutExpired:
+                if attempt:
+                    sys.exit(f"wad-make timed out twice building {dst_wad}")
+                log(f"wad-make timed out building {dst_wad.name}, retrying", "wad-make")
+                continue
+            except ExternalProcessFailed as exc:
+                log_process_output(exc.result, "wad-make")
+                # The pinned Windows tool can terminate with STATUS_HEAP_CORRUPTION
+                # after writing an otherwise ordinary input. Discard its output.
+                if attempt == 0 and (exc.result.returncode & 0xFFFFFFFF) == 0xC0000374:
+                    log(f"wad-make terminated abnormally building {dst_wad.name}, retrying", "wad-make")
+                    continue
+                sys.exit(f"wad-make exited with code {exc.result.returncode}")
+            log_process_output(result, "wad-make")
+            os.replace(staged, dst_wad)
+            return
 
 
 SKINLINE_NAMES: dict[str, str] = {
@@ -1890,11 +1883,11 @@ def find_exact_identity_wad(
     champions_dir: Path,
 ) -> tuple[str, Path]:
     expected_name = f"{identity.wad_base}{WAD_CLIENT_SUFFIX}"
+    folded_name = expected_name.casefold()
     matches = [
         path
         for path in champions_dir.iterdir()
-        if path.is_file()
-        and path.name.casefold() == expected_name.casefold()
+        if path.name.casefold() == folded_name and path.is_file()
     ]
     if len(matches) != 1:
         sys.exit(
@@ -2076,8 +2069,6 @@ def make_base_display_name(champion_name: str, skin_number: int, skinline: str) 
     label = pretty_skinline(skinline)
     if not label:
         return f"{champion_name} Skin {skin_number}"
-    if label.endswith(":"):
-        return f"{label} {champion_name}"
     return f"{label} {champion_name}"
 
 
@@ -2108,19 +2099,10 @@ def run_ritobin_dir_quiet(src_dir: Path, dst_dir: Path, in_fmt: str, out_fmt: st
         sys.exit(f"ritobin_cli.exe not found at {RITOBIN_CLI}")
     cmd = [str(RITOBIN_CLI), "-r", "-i", in_fmt, "-o", out_fmt, str(src_dir), str(dst_dir)]
     try:
-        run_external_process(
-            cmd,
-            tool="ritobin-recursive",
-            timing_phase="catalog.ritobin_scan",
-        )
+        run_external_process(cmd, tool="ritobin-recursive", timing_phase="catalog.ritobin_scan")
     except ExternalProcessFailed as exc:
-        tail = "\n".join(
-            (exc.result.stdout + exc.result.stderr).splitlines()[-30:]
-        )
-        sys.exit(
-            "ritobin_cli recursive conversion exited with code "
-            f"{exc.result.returncode}\n{tail}"
-        )
+        tail = "\n".join((exc.result.stdout + exc.result.stderr).splitlines()[-30:])
+        sys.exit(f"ritobin_cli recursive conversion exited with code {exc.result.returncode}\n{tail}")
 
 
 def parse_skin_metadata(json_dir: Path, skin_number: int) -> dict[str, Any] | None:
@@ -2141,7 +2123,6 @@ def parse_skin_metadata(json_dir: Path, skin_number: int) -> dict[str, Any] | No
         "skinline": extract_skinline(json_field_value(skin_entry, "MetaDataTags") or ""),
         "skeleton": json_field_value({"value": mesh}, "Skeleton") if isinstance(mesh, dict) else None,
         "simple_skin": json_field_value({"value": mesh}, "SimpleSkin") if isinstance(mesh, dict) else None,
-        "texture": json_field_value({"value": mesh}, "Texture") if isinstance(mesh, dict) else None,
     }
 
 
@@ -2273,37 +2254,34 @@ def collect_catalog_rows(
     skins_dir: Path,
     json_dir: Path,
 ) -> list[dict[str, Any]]:
-    """Convert and parse the main unit's staged skin metadata."""
+    """Convert the staged skin views and require one JSON result per input."""
 
     json_dir.mkdir()
     run_ritobin_dir_quiet(skins_dir, json_dir, "bin", "json")
     rows: list[dict[str, Any]] = []
-    skin_bins = sorted(
-        skins_dir.glob("skin*.bin"),
-        key=lambda path: (
-            int(match.group(1))
-            if (
-                match := re.fullmatch(
-                    r"skin(\d+)\.bin",
-                    path.name,
-                    re.IGNORECASE,
-                )
-            )
-            else 999999
-        ),
-    )
-    for skin_bin in skin_bins:
-        match = re.fullmatch(
-            r"skin(\d+)\.bin",
-            skin_bin.name,
-            re.IGNORECASE,
-        )
-        if match is None:
-            continue
-        metadata = parse_skin_metadata(json_dir, int(match.group(1)))
-        if metadata is not None:
-            rows.append(metadata)
+    for skin_bin in sorted(skins_dir.glob("skin*.bin")):
+        metadata = parse_skin_metadata(json_dir, int(skin_bin.stem[4:]))
+        if metadata is None:
+            raise ChampionLayoutError(f"missing required skin metadata for {skin_bin}")
+        rows.append(metadata)
     return rows
+
+
+def collect_extracted_catalog_rows(
+    skins_dir: Path, temp_dir: Path, skin_numbers: frozenset[int] | None = None,
+) -> list[dict[str, Any]]:
+    with tempfile.TemporaryDirectory(dir=temp_dir) as temp_name:
+        work = Path(temp_name)
+        views = work / "skins"
+        views.mkdir()
+        for source in skins_dir.glob("skin*.bin"):
+            match = re.fullmatch(r"skin(\d+)\.bin", source.name, re.IGNORECASE)
+            if not match:
+                continue
+            number = int(match.group(1))
+            if skin_numbers is None or number == 0 or number in skin_numbers:
+                stage_skin_view(source, views / f"skin{number}.bin")
+        return collect_catalog_rows(views, work / "json")
 
 
 def build_catalog_from_metadata_rows(
@@ -2311,11 +2289,14 @@ def build_catalog_from_metadata_rows(
     wad_path: Path,
     identity: ChampionIdentity,
     rows: list[dict[str, Any]],
+    skin_numbers: frozenset[int] | None = None,
 ) -> LocalCatalog:
     """Apply the shared catalog/chroma semantics to parsed main-unit rows."""
 
     rows.sort(key=lambda row: row["skin_number"])
-    by_number = {int(row["skin_number"]): row for row in rows}
+    present_numbers = {int(row["skin_number"]) for row in rows}
+    official_catalog = load_official_name_catalog(champion_name, wad_path.parent)
+    official_names = official_catalog.names_by_skin_number
     skeleton_owners: dict[str, int] = {}
     simple_skin_owners: dict[str, int] = {}
     parent_by_skin: dict[int, int | None] = {}
@@ -2324,9 +2305,11 @@ def build_catalog_from_metadata_rows(
         skin_number = int(row["skin_number"])
         parent: int | None = None
         raw_parent = row.get("parent")
-        if (
+        if skin_number in official_names:
+            parent = official_catalog.chroma_parents.get(skin_number)
+        elif (
             isinstance(raw_parent, int)
-            and raw_parent in by_number
+            and raw_parent in present_numbers
             and raw_parent != skin_number
         ):
             parent = raw_parent
@@ -2378,34 +2361,39 @@ def build_catalog_from_metadata_rows(
         base_names[skin_number] = name
 
     chroma_index_by_parent: dict[int, int] = {}
-    official_catalog = load_official_name_catalog(
-        champion_name,
-        wad_path.parent,
-    )
-    official_names = official_catalog.names_by_skin_number
+    expected = official_names.keys() if skin_numbers is None else skin_numbers
+    missing_names = expected - present_numbers
+    if missing_names:
+        available = load_cached_wad_index(wad_path).chunks_by_hash
+        missing = sorted(
+            number
+            for number in missing_names
+            if wad_path_hash(champion_skin_path(identity.main_unit, number)) in available
+        )
+        if missing:
+            raise ChampionLayoutError(
+                f"{champion_name}: catalog is missing installed skin numbers {missing}; "
+                "refresh the path dictionary with --hash-update auto"
+            )
     skins: list[LocalSkin] = []
     for row in rows:
         skin_number = int(row["skin_number"])
         parent = parent_by_skin[skin_number]
-        is_chroma = parent is not None
-        if is_chroma:
-            assert parent is not None
-            parent_official = official_names.get(parent)
-            parent_name = parent_official or base_names.get(
-                parent,
-                make_base_display_name(champion_name, parent, ""),
+        official_name = official_names.get(skin_number)
+        if parent is not None:
+            base_display_name = (
+                official_names.get(parent)
+                or base_names.get(parent)
+                or make_base_display_name(champion_name, parent, "")
             )
             chroma_index = chroma_index_by_parent.get(parent, 0) + 1
             chroma_index_by_parent[parent] = chroma_index
-            official_name = official_names.get(skin_number)
             display_name = official_name or make_chroma_display_name(
-                parent_name,
+                base_display_name,
                 skin_number,
                 chroma_index,
             )
-            base_display_name = parent_name
         else:
-            official_name = official_names.get(skin_number)
             display_name = official_name or base_names[skin_number]
             base_display_name = display_name
 
@@ -2420,23 +2408,10 @@ def build_catalog_from_metadata_rows(
             ),
             skinline=str(row.get("skinline") or ""),
             parent_skin_number=parent,
-            is_chroma=is_chroma,
+            is_chroma=parent is not None,
             aliases=(),
         )
-        skins.append(
-            LocalSkin(
-                champion_name=skin.champion_name,
-                champion_id=skin.champion_id,
-                skin_number=skin.skin_number,
-                display_name=skin.display_name,
-                base_display_name=skin.base_display_name,
-                internal_name=skin.internal_name,
-                skinline=skin.skinline,
-                parent_skin_number=skin.parent_skin_number,
-                is_chroma=skin.is_chroma,
-                aliases=make_skin_aliases(skin),
-            )
-        )
+        skins.append(replace(skin, aliases=make_skin_aliases(skin)))
 
     return LocalCatalog(
         champion_name=champion_name,
@@ -2758,6 +2733,8 @@ def deserialize_local_catalog(
         raise ChampionLayoutError(
             "persistent Catalog skin numbers are not canonical"
         )
+    if set(numbers) != {record.skin_number for record in session.main_skin_records}:
+        raise ChampionLayoutError("persistent Catalog differs from the main skin paths in the WAD")
     return LocalCatalog(
         champion_name=identity.display_name,
         wad_path=session.source_wad,
@@ -2770,6 +2747,7 @@ def deserialize_local_catalog(
 def build_direct_catalog_cache_key(
     session: ChampionRuntimeSession,
     main_records: tuple[HashSkinRecord, ...],
+    skin_numbers: frozenset[int] | None = None,
 ) -> PersistentCacheKey:
     prepared = session.prepared
     cache = session.persistent_cache
@@ -2788,6 +2766,7 @@ def build_direct_catalog_cache_key(
         manifest = {
             "schemaVersion": CATALOG_CACHE_SCHEMA_VERSION,
             "parserSchemaVersion": CATALOG_PARSER_SCHEMA_VERSION,
+            "selectedSkinNumbers": None if skin_numbers is None else sorted(skin_numbers),
             "champion": {
                 "id": session.identity.champion_id,
                 "displayName": session.identity.display_name,
@@ -2814,7 +2793,8 @@ def build_direct_catalog_cache_key(
 
 def stage_catalog_payloads(
     session: ChampionRuntimeSession,
-    payloads: Mapping[str, bytes],
+    payloads: Mapping[int, bytes],
+    skin_numbers: frozenset[int] | None = None,
 ) -> LocalCatalog:
     if not payloads:
         raise ChampionLayoutError(
@@ -2826,47 +2806,31 @@ def stage_catalog_payloads(
         dir=SCRIPT_DIR,
     ) as temp_name:
         temp_dir = Path(temp_name)
-        skins_dir = (
-            temp_dir
-            / "staging"
-            / session.identity.main_unit
-            / "skins"
-        )
-        skins_dir.mkdir(parents=True)
+        skins_dir = temp_dir / "skins"
+        skins_dir.mkdir()
         with timed_phase("catalog.direct_stage"):
-            for normalized_path, payload in payloads.items():
-                match = re.fullmatch(
-                    r"data/characters/[^/]+/skins/skin(\d+)\.bin",
-                    normalized_path,
+            for record in session.main_skin_records:
+                stage_skin_view(
+                    Path(record.path), skins_dir / f"skin{record.skin_number}.bin",
+                    payload=payloads[record.path_hash],
                 )
-                if match is None:
-                    raise ChampionLayoutError(
-                        f"unexpected Direct Catalog path: {normalized_path}"
-                    )
-                (
-                    skins_dir
-                    / f"skin{int(match.group(1))}.bin"
-                ).write_bytes(payload)
         rows = collect_catalog_rows(
             skins_dir,
             temp_dir / "catalog-json",
-        )
-    if not rows:
-        raise ChampionLayoutError(
-            f"Ritobin produced no main skin metadata for "
-            f"{session.identity.display_name}"
         )
     return build_catalog_from_metadata_rows(
         session.identity.display_name,
         session.source_wad,
         session.identity,
         rows,
+        skin_numbers,
     )
 
 
 @timed_function("catalog.direct")
 def build_direct_catalog(
     session: ChampionRuntimeSession,
+    skin_numbers: frozenset[int] | None = None,
 ) -> LocalCatalog:
     prepared = session.prepared
     if prepared is None:
@@ -2878,12 +2842,18 @@ def build_direct_catalog(
     try:
         assert_runtime_session_source_current(session)
         main_records = direct_catalog_main_records(session)
+        if skin_numbers is not None:
+            main_records = tuple(
+                record for record in main_records
+                if record.skin_number == 0 or record.skin_number in skin_numbers
+            )
         session.main_skin_records = main_records
         cache_key: PersistentCacheKey | None = None
         if session.persistent_cache is not None:
             cache_key = build_direct_catalog_cache_key(
                 session,
                 main_records,
+                skin_numbers,
             )
             with timed_phase("cache.catalog.lookup"):
                 lookup = session.persistent_cache.lookup(
@@ -2935,11 +2905,7 @@ def build_direct_catalog(
                 main_hashes,
                 validate_bin=True,
             )
-        payloads = {
-            record.path: payloads_by_hash[record.path_hash]
-            for record in main_records
-        }
-        catalog = stage_catalog_payloads(session, payloads)
+        catalog = stage_catalog_payloads(session, payloads_by_hash, skin_numbers)
         assert_runtime_session_source_current(session)
         if (
             session.persistent_cache is not None
@@ -2979,24 +2945,25 @@ def build_direct_catalog(
 
 def build_explicit_legacy_catalog(
     session: ChampionRuntimeSession,
+    skin_numbers: frozenset[int] | None = None,
 ) -> LocalCatalog:
     count_operation(
         "catalog.legacy.sessions",
         champion=session.identity.display_name,
     )
-    temp_owner = tempfile.TemporaryDirectory(
+    temp_owner = session.legacy_temp or tempfile.TemporaryDirectory(
         prefix=".legacy-session-",
         dir=SCRIPT_DIR,
     )
     temp_dir = Path(temp_owner.name)
     try:
-        extracted_dir = extract_wad_to_temp_dir(
-            session.source_wad,
-            temp_dir,
-            purpose="legacy-session",
-            expected_wad_identity=session.source_identity,
-            expected_toc_digest=session.toc_digest,
-        )
+        extracted_dir = session.legacy_extracted_root
+        if extracted_dir is None:
+            extracted_dir = extract_wad_to_temp_dir(
+                session.source_wad, temp_dir, purpose="legacy-session",
+                expected_wad_identity=session.source_identity,
+                expected_toc_digest=session.toc_digest,
+            )
         characters_dir = extracted_dir / "data" / "characters"
         if not characters_dir.is_dir():
             raise ChampionLayoutError(
@@ -3013,19 +2980,18 @@ def build_explicit_legacy_catalog(
             unit_dirs,
             session.identity,
         )
-        rows = collect_catalog_rows(
-            main_dir / "skins",
-            temp_dir / "catalog-json",
-        )
+        rows = collect_extracted_catalog_rows(main_dir / "skins", temp_dir, skin_numbers)
         catalog = build_catalog_from_metadata_rows(
             session.identity.display_name,
             session.source_wad,
             session.identity,
             rows,
+            skin_numbers,
         )
         assert_runtime_session_source_current(session)
     except BaseException:
-        temp_owner.cleanup()
+        if session.legacy_temp is None:
+            temp_owner.cleanup()
         raise
     session.legacy_temp = temp_owner
     session.legacy_extracted_root = extracted_dir
@@ -3039,10 +3005,11 @@ def build_explicit_legacy_catalog(
 
 def build_runtime_catalog(
     session: ChampionRuntimeSession,
+    skin_numbers: frozenset[int] | None = None,
 ) -> LocalCatalog:
     if session.backend == "legacy":
-        return build_explicit_legacy_catalog(session)
-    return build_direct_catalog(session)
+        return build_explicit_legacy_catalog(session, skin_numbers)
+    return build_direct_catalog(session, skin_numbers)
 
 
 @timed_function("catalog.total")
@@ -3098,10 +3065,7 @@ def build_local_catalog(
         except ChampionIdentityError as exc:
             sys.exit(f"{exc} in {wad_path.name}")
         skins_dir = main_dir / "skins"
-        rows = collect_catalog_rows(
-            skins_dir,
-            temp_dir / "catalog-json",
-        )
+        rows = collect_extracted_catalog_rows(skins_dir, temp_dir)
 
     catalog = build_catalog_from_metadata_rows(
         champion_name,
@@ -3150,6 +3114,7 @@ def get_runtime_catalog(
     *,
     wad_mode: str,
     session_pool: ChampionSessionPool | None,
+    skin_numbers: frozenset[int] | None = None,
 ) -> LocalCatalog:
     if session_pool is not None:
         if session_pool.champions_dir.resolve() != champions_dir.resolve():
@@ -3160,9 +3125,12 @@ def get_runtime_catalog(
             raise ValueError(
                 "ChampionSessionPool WAD mode does not match selection mode"
             )
-        return session_pool.get_catalog(champion_name, wad_path)
-    with ChampionSessionPool(champions_dir, wad_mode) as owned_pool:
-        return owned_pool.get_catalog(champion_name, wad_path)
+        return session_pool.get_catalog(champion_name, wad_path, skin_numbers)
+    index = None
+    if wad_mode == "direct":
+        index = ensure_hash_skin_index(HASHES_GAME_PATH, HASH_SKIN_INDEX_PATH).index
+    with ChampionSessionPool(champions_dir, wad_mode, hash_skin_index=index) as owned_pool:
+        return owned_pool.get_catalog(champion_name, wad_path, skin_numbers)
 
 
 def resolve_local_skin_name(
@@ -3172,27 +3140,57 @@ def resolve_local_skin_name(
     wad_mode: str = "direct",
     session_pool: ChampionSessionPool | None = None,
 ) -> list[LocalSkin]:
-    official_ref = resolve_official_skin_ref(skin_name, champions_dir)
-    if official_ref is not None:
-        if official_ref.skin_number == 0:
-            sys.exit(f"{official_ref.display_name!r} is skin0/classic and cannot be used as a target skin")
+    return resolve_local_skin_names(
+        (skin_name,), champions_dir, wad_mode=wad_mode, session_pool=session_pool,
+    )
 
-        champion_name, wad_path = find_official_champion_wad(official_ref.champion_id, champions_dir)
+
+def resolve_local_skin_names(
+    names: Iterable[str],
+    champions_dir: Path,
+    *,
+    wad_mode: str,
+    session_pool: ChampionSessionPool | None,
+) -> list[LocalSkin]:
+    queries = [(name, resolve_official_skin_ref(name, champions_dir)) for name in names]
+    by_champion: dict[int, list[OfficialSkinRef]] = {}
+    for _, ref in queries:
+        if ref is None:
+            continue
+        if ref.skin_number == 0:
+            sys.exit(f"{ref.display_name!r} is skin0/classic and cannot be used as a target skin")
+        by_champion.setdefault(ref.champion_id, []).append(ref)
+
+    official_matches: dict[OfficialSkinRef, LocalSkin] = {}
+    for champion_id, refs in by_champion.items():
+        champion_name, wad_path = find_official_champion_wad(champion_id, champions_dir)
         catalog = get_runtime_catalog(
-            champion_name,
-            wad_path,
-            champions_dir,
-            wad_mode=wad_mode,
+            champion_name, wad_path, champions_dir, wad_mode=wad_mode,
             session_pool=session_pool,
+            skin_numbers=frozenset(ref.skin_number for ref in refs),
         )
-        direct = [skin for skin in catalog.skins if skin.skin_number == official_ref.skin_number]
-        if not direct:
-            sys.exit(
-                f"official skin {official_ref.display_name!r} maps to skin{official_ref.skin_number}, "
-                f"but {wad_path.name} does not contain that skin"
-            )
-        return deduplicate_local_skin_matches(direct)
+        by_number = {skin.skin_number: skin for skin in catalog.skins}
+        for ref in refs:
+            if ref.skin_number not in by_number:
+                sys.exit(
+                    f"official skin {ref.display_name!r} maps to skin{ref.skin_number}, "
+                    f"but {wad_path.name} does not contain that skin"
+                )
+            official_matches[ref] = by_number[ref.skin_number]
 
+    selected: dict[int, LocalSkin] = {}
+    for name, ref in queries:
+        matches = (official_matches[ref],) if ref is not None else match_local_skin_alias(
+            name, champions_dir, wad_mode=wad_mode, session_pool=session_pool,
+        )
+        for skin in matches:
+            selected.setdefault(skin.full_skin_id, skin)
+    return list(selected.values())
+
+
+def match_local_skin_alias(
+    skin_name: str, champions_dir: Path, *, wad_mode: str, session_pool: ChampionSessionPool | None,
+) -> list[LocalSkin]:
     champion_name, wad_path = infer_champion_from_skin_name(skin_name, champions_dir)
     catalog = get_runtime_catalog(
         champion_name,
@@ -3202,12 +3200,12 @@ def resolve_local_skin_name(
         session_pool=session_pool,
     )
 
-    def matches_query(skin: LocalSkin, query: str) -> bool:
-        if normalize_display_name(query) == normalize_display_name(skin.display_name):
-            return True
-        return normalize_lookup(query) in skin.aliases
-
-    direct = [skin for skin in catalog.skins if matches_query(skin, skin_name)]
+    display_query = normalize_display_name(skin_name)
+    alias_query = normalize_lookup(skin_name)
+    direct = [
+        skin for skin in catalog.skins
+        if normalize_display_name(skin.display_name) == display_query or alias_query in skin.aliases
+    ]
 
     if not direct:
         available = [s.display_name for s in catalog.skins if s.skin_number != 0 and not s.is_chroma]
@@ -3409,12 +3407,6 @@ def prepare_skins(
     return result, champion_display_name
 
 
-def json_key_repr(value: Any) -> str:
-    if isinstance(value, int):
-        return f"0x{value:x}"
-    return repr(value)
-
-
 def json_entry_items(data: dict[str, Any], label: str) -> list[dict[str, Any]]:
     try:
         items = data["entries"]["value"]["items"]
@@ -3435,104 +3427,19 @@ def find_json_entry(data: dict[str, Any], entry_name: str, label: str) -> dict[s
     return hits[0]
 
 
-def find_json_field(entry: dict[str, Any], field_name: str, label: str) -> dict[str, Any]:
-    value = entry.get("value")
-    if not isinstance(value, dict):
-        sys.exit(f"[{label}] JSON entry has no object value")
-    fields = value.get("items")
-    if not isinstance(fields, list):
-        sys.exit(f"[{label}] JSON entry has no field list")
-    hits = [field for field in fields if isinstance(field, dict) and field.get("key") == field_name]
-    if len(hits) != 1:
-        sys.exit(f"[{label}] expected 1 field {field_name!r}, got {len(hits)}")
-    return hits[0]
-
-
-def replace_json_entry_key(
-    base_key: Any,
-    target_entry: dict[str, Any],
-    label: str,
-) -> None:
-    old_key = target_entry.get("key")
-    if old_key == base_key:
-        log(f"  {label}: already identical, skip")
-        return
-    log(f"  {label}:")
-    log(f"    -  {json_key_repr(old_key)}")
-    log(f"    +  {json_key_repr(base_key)}")
-    target_entry["key"] = base_key
-
-
-def replace_json_field(
-    base_value: Any,
-    target_entry: dict[str, Any],
-    field_name: str,
-    label: str,
-) -> None:
-    target_field = find_json_field(target_entry, field_name, f"{label} target")
-    old_value = target_field.get("value")
-    if old_value == base_value:
-        log(f"  {label}: already identical, skip")
-        return
-    log(f"  {label}:")
-    log(f"    -  {json_key_repr(old_value)}")
-    log(f"    +  {json_key_repr(base_value)}")
-    target_field["value"] = base_value
-
-
 def extract_base_rebase_snapshot(
     base_data: dict[str, Any],
 ) -> BaseRebaseSnapshot:
-    base_skin = find_json_entry(base_data, "SkinCharacterDataProperties", "base skin")
-    base_resolver = find_json_entry(base_data, "ResourceResolver", "base ResourceResolver")
-    champion_skin_name = find_json_field(
-        base_skin,
-        "ChampionSkinName",
-        "ChampionSkinName base",
-    )
-    resource_resolver = find_json_field(
-        base_skin,
-        "mResourceResolver",
-        "mResourceResolver base",
-    )
-    return BaseRebaseSnapshot.from_values(
-        skin_entry_key=base_skin.get("key"),
-        champion_skin_name=champion_skin_name.get("value"),
-        resource_resolver=resource_resolver.get("value"),
-        resolver_entry_key=base_resolver.get("key"),
-    )
+    return SkinIdentity.read(base_data).snapshot()
 
 
 def apply_base_rebase_snapshot(
     base_snapshot: BaseRebaseSnapshot,
     target_data: dict[str, Any],
 ) -> dict[str, Any]:
-    values = base_snapshot.values()
-    target_skin = find_json_entry(target_data, "SkinCharacterDataProperties", "target skin")
-    target_resolver = find_json_entry(target_data, "ResourceResolver", "target ResourceResolver")
-
-    replace_json_entry_key(
-        values["skinEntryKey"],
-        target_skin,
-        "SkinCharacterDataProperties entry key",
-    )
-    replace_json_field(
-        values["championSkinName"],
-        target_skin,
-        "ChampionSkinName",
-        "ChampionSkinName",
-    )
-    replace_json_field(
-        values["resourceResolver"],
-        target_skin,
-        "mResourceResolver",
-        "mResourceResolver",
-    )
-    replace_json_entry_key(
-        values["resolverEntryKey"],
-        target_resolver,
-        "ResourceResolver entry key",
-    )
+    target = SkinIdentity.read(target_data)
+    base = base_snapshot.values()
+    target.rebase(base, resolver_remaps([(target, base)]))
     return target_data
 
 
@@ -3919,10 +3826,14 @@ def build_legacy_prepare_session(
     runtime_session: ChampionRuntimeSession | None = None,
 ) -> ChampionPrepareSession:
     source_identity, wad_sha256 = stable_wad_content_identity(source_wad)
+    index = runtime_session.hash_skin_index if runtime_session is not None else None
+    if index is None and HASHES_GAME_PATH.is_file():
+        index = ensure_hash_skin_index(HASHES_GAME_PATH, HASH_SKIN_INDEX_PATH).index
     fingerprint = canonical_json_sha256(
         {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "backend": "legacy-full-wad",
+            "skinPathsSha256": index.relevant_sha256 if index is not None else None,
             "champion": {
                 "id": identity.champion_id,
                 "alias": identity.alias,
@@ -4712,10 +4623,16 @@ def validate_mod_archive(archive_path: Path, wad_name: str) -> dict[str, Any]:
                 f"META/info.json requires string fields: {', '.join(invalid_fields)}"
             )
 
-        with zf.open(expected_wad) as wad_member:
-            wad_header = wad_member.read(2)
-        if wad_header != b"RW":
-            raise ValueError(f"{expected_wad} does not have a WAD header")
+        member = zf.getinfo(expected_wad)
+        with zf.open(member) as wad_member:
+            header = wad_member.read(WAD_HEADER_SIZE)
+        if len(header) != WAD_HEADER_SIZE or header[:2] != WAD_MAGIC:
+            raise ValueError(f"{expected_wad} has an invalid WAD header")
+        if not WadVersion(header[2], header[3]).is_supported:
+            raise ValueError(f"{expected_wad} has an unsupported WAD version")
+        count = int.from_bytes(header[-4:], "little")
+        if count == 0 or WAD_HEADER_SIZE + count * WAD_ENTRY_SIZE > member.file_size:
+            raise ValueError(f"{expected_wad} has an empty or truncated WAD table")
     return info
 
 
@@ -5112,23 +5029,10 @@ def prompt_skin_names(
             "输入精确皮肤名、完整 skin ID 或 skin<N> 英雄名（多个用逗号分隔），"
             "e.g. Lunar Beast Annie / 1013 / skin13 Annie: "
         ).strip()
-    selected: list[LocalSkin] = []
-    seen: set[tuple[str, int]] = set()
-    for name in [n.strip() for n in raw.split(",") if n.strip()]:
-        matches = resolve_local_skin_name(
-            name,
-            champions_dir,
-            wad_mode=wad_mode,
-            session_pool=session_pool,
-        )
-        log(f"matched {len(matches)} local WAD entr{'y' if len(matches) == 1 else 'ies'} for {name!r}:")
-        for skin in matches:
-            log(f"  - {skin.champion_name} skin{skin.skin_number}: {skin.display_name}")
-            key = (skin.champion_name.lower(), skin.skin_number)
-            if key in seen:
-                continue
-            seen.add(key)
-            selected.append(skin)
+    names = [n.strip() for n in raw.split(",") if n.strip()]
+    selected = resolve_local_skin_names(names, champions_dir, wad_mode=wad_mode, session_pool=session_pool)
+    for skin in selected:
+        log(f"  - {skin.champion_name} skin{skin.skin_number}: {skin.display_name}")
     return selected
 
 
@@ -5311,11 +5215,82 @@ def prepare_batched_unit_work(
     return base_work, unit_work
 
 
+def verified_peer_dependency(
+    item: BatchedUnitWork,
+    data: dict[str, Any],
+    link: int | str,
+    peer_unit: str,
+    session: ChampionPrepareSession | None,
+) -> str | None:
+    """An auxiliary unit can explicitly reuse a different skin of its base owner."""
+    path = peer_skin_path(peer_unit, link)
+    if path is None:
+        return None
+    linked = data.get("linked", {}).get("value", {}).get("items", ())
+    if path in {name.casefold() for name in linked}:
+        return None
+    runtime = session.runtime_session if session is not None else None
+    if session is not None and session.prepared is not None:
+        payload = session.prepared.read_path(path, validate_bin=True)
+    elif runtime is not None and runtime.legacy_extracted_root is not None:
+        payload = (runtime.legacy_extracted_root / path).read_bytes()
+    else:
+        payload = read_wad_chunk(item.plan.source_wad, wad_path_hash(path))
+    if payload is None or bin_key(link) not in SkinBin.parse(payload).resolver_keys():
+        raise SkinBinError(f"{item.target_bin}: {path} does not provide resolver {link!r}")
+    return path
+
+
+def stage_archive_identities(
+    items: list[BatchedUnitWork],
+    base_parse_cache: ProcessBaseParseCache,
+    session: ChampionPrepareSession | None,
+) -> dict[Path, str]:
+    """Resolve links across all units in one archive, independent of traversal order."""
+    parsed = []
+    base_owners: dict[int, list[str]] = {}
+    for item in items:
+        snapshot = base_parse_cache.get(item.base_key)
+        if snapshot is None:
+            raise BaseCacheError(f"missing parsed base snapshot {item.base_key.digest}")
+        base = snapshot.values()
+        if base["resolverEntryKey"] is not None:
+            base_owners.setdefault(bin_key(base["resolverEntryKey"]), []).append(item.unit.casefold())
+        with timed_phase("rebase.target_json_parse"):
+            data = json.loads(item.target_json.read_text(encoding="utf-8"))
+            try:
+                target = SkinIdentity.read(data)
+            except SkinBinError as exc:
+                raise SkinBinError(f"{item.target_bin}: {exc}") from exc
+        parsed.append((item, data, target, base))
+
+    remaps = resolver_remaps([(target, base) for _, _, target, base in parsed])
+    extra_dependencies = {}
+    for item, data, target, base in parsed:
+        with measurement_scope(
+            champion=item.plan.skin.champion_name, skin=item.plan.display_name,
+            skin_number=item.plan.skin.skin_number, unit=item.unit,
+        ), timed_phase("rebase.modify_json"):
+            link = target.link
+            if link is not None and bin_key(link) not in remaps and base["resourceResolver"] is not None:
+                for peer in base_owners.get(bin_key(base["resourceResolver"]), []):
+                    if peer != item.unit.casefold():
+                        path = verified_peer_dependency(item, data, link, peer, session)
+                        if path is not None:
+                            if item.final_bin in extra_dependencies:
+                                raise SkinBinError(f"{item.target_bin}: ambiguous external resolver provider")
+                            extra_dependencies[item.final_bin] = path
+            target.rebase(base, remaps)
+            item.modified_json.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return extra_dependencies
+
+
 @timed_function("conversion.batch.total")
 def convert_batched_unit_work(
     base_work: Mapping[str, BatchedBaseWork],
     unit_work: list[BatchedUnitWork],
     base_parse_cache: ProcessBaseParseCache,
+    sessions: Mapping[int, ChampionPrepareSession] | None = None,
 ) -> None:
     count_operation("ritobin.batch.base_files", len(base_work))
     count_operation("ritobin.batch.target_files", len(unit_work))
@@ -5333,42 +5308,24 @@ def convert_batched_unit_work(
             base_data = json.loads(
                 item.parsed_json.read_text(encoding="utf-8")
             )
-            snapshot = extract_base_rebase_snapshot(base_data)
+            try:
+                snapshot = extract_base_rebase_snapshot(base_data)
+            except SkinBinError as exc:
+                raise SkinBinError(f"{item.source_bin}: {exc}") from exc
         if base_parse_cache.put(item.key, snapshot):
             count_operation("cache.base_parse.persistent_stores")
         count_operation("cache.base_parse.stores")
 
+    by_archive: dict[Path, list[BatchedUnitWork]] = {}
+    for item in unit_work:
+        by_archive.setdefault(item.plan.work_dir, []).append(item)
+    extra_dependencies = {}
+    for items in by_archive.values():
+        session = sessions[items[0].plan.skin.champion_id] if sessions is not None else None
+        extra_dependencies.update(stage_archive_identities(items, base_parse_cache, session))
+
     json_to_bin: list[RitobinBatchItem] = []
     for item in unit_work:
-        snapshot = base_parse_cache.get(item.base_key)
-        if snapshot is None:
-            raise BaseCacheError(
-                f"missing parsed base snapshot {item.base_key.digest}"
-            )
-        with measurement_scope(
-            champion=item.plan.skin.champion_name,
-            skin=item.plan.display_name,
-            skin_number=item.plan.skin.skin_number,
-            unit=item.unit,
-        ):
-            with timed_phase("rebase.target_json_parse"):
-                target_data = json.loads(
-                    item.target_json.read_text(encoding="utf-8")
-                )
-            with timed_phase("rebase.modify_json"):
-                modified_data = apply_base_rebase_snapshot(
-                    snapshot,
-                    target_data,
-                )
-            item.modified_json.write_text(
-                json.dumps(
-                    modified_data,
-                    ensure_ascii=False,
-                    indent=2,
-                )
-                + "\n",
-                encoding="utf-8",
-            )
         relative = (
             f"champion-{item.plan.skin.champion_id}/"
             f"skin-{item.plan.skin.skin_number:03d}/"
@@ -5389,13 +5346,14 @@ def convert_batched_unit_work(
         out_fmt="bin",
     )
     for item in unit_work:
-        validate_bin_payload(
-            item.final_bin.read_bytes(),
-            (
-                f"data/characters/{item.unit.casefold()}/"
-                "skins/skin0.bin"
-            ),
-        )
+        try:
+            original = SkinBin.parse(item.target_bin.read_bytes())
+            converted = SkinBin.parse(item.final_bin.read_bytes())
+            item.final_bin.write_bytes(original.restore_target(
+                converted, extra_dependency=extra_dependencies.get(item.final_bin)
+            ))
+        except SkinBinError as exc:
+            raise SkinBinError(f"{item.target_bin}: {exc}") from exc
 
 
 def package_batched_plans(
@@ -5447,6 +5405,7 @@ def execute_batched_conversions(
         base_work,
         unit_work,
         cache,
+        sessions,
     )
     package_batched_plans(plans, archive_format)
     return cache

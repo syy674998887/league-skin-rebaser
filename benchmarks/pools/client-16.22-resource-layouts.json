@@ -1,0 +1,295 @@
+{
+  "schemaVersion": 1,
+  "poolId": "client-16.22-resource-layouts",
+  "gameVersion": "16.22.834.8910",
+  "description": "All official skins of the champions with missing names, external, absent, or multiple resolvers in client 16.22.",
+  "osPageCachePolicy": "uncontrolled",
+  "champions": [
+    {
+      "championId": 37,
+      "query": "Sona",
+      "wadName": "Sona.wad.client",
+      "mainUnit": "sona",
+      "cases": [
+        "absent-base-name"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            76
+          ]
+        ],
+        "exclude": []
+      },
+      "skinCount": 76,
+      "pairedCount": 109,
+      "uniqueBaseCount": 5,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 50,
+      "query": "Swain",
+      "wadName": "Swain.wad.client",
+      "mainUnit": "swain",
+      "cases": [
+        "cross-unit-link",
+        "shared-resolver"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            50
+          ]
+        ],
+        "exclude": []
+      },
+      "skinCount": 50,
+      "pairedCount": 104,
+      "uniqueBaseCount": 4,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 51,
+      "query": "Caitlyn",
+      "wadName": "Caitlyn.wad.client",
+      "mainUnit": "caitlyn",
+      "cases": [
+        "shared-resolver"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            62
+          ]
+        ],
+        "exclude": []
+      },
+      "skinCount": 62,
+      "pairedCount": 134,
+      "uniqueBaseCount": 4,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 99,
+      "query": "Lux",
+      "wadName": "Lux.wad.client",
+      "mainUnit": "lux",
+      "cases": [
+        "multiple-local-resolvers"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            81
+          ]
+        ],
+        "exclude": []
+      },
+      "skinCount": 81,
+      "pairedCount": 102,
+      "uniqueBaseCount": 2,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 117,
+      "query": "Lulu",
+      "wadName": "Lulu.wad.client",
+      "mainUnit": "lulu",
+      "cases": [
+        "external-target-resolver"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            64
+          ]
+        ],
+        "exclude": []
+      },
+      "skinCount": 64,
+      "pairedCount": 302,
+      "uniqueBaseCount": 6,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 202,
+      "query": "Jhin",
+      "wadName": "Jhin.wad.client",
+      "mainUnit": "jhin",
+      "cases": [
+        "no-resolver-link"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            72
+          ]
+        ],
+        "exclude": [
+          26,
+          54,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63
+        ]
+      },
+      "skinCount": 62,
+      "pairedCount": 124,
+      "uniqueBaseCount": 2,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 235,
+      "query": "Senna",
+      "wadName": "Senna.wad.client",
+      "mainUnit": "senna",
+      "cases": [
+        "no-resolver-link"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            89
+          ]
+        ],
+        "exclude": [
+          47
+        ]
+      },
+      "skinCount": 88,
+      "pairedCount": 176,
+      "uniqueBaseCount": 2,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 427,
+      "query": "Ivern",
+      "wadName": "Ivern.wad.client",
+      "mainUnit": "ivern",
+      "cases": [
+        "shared-resolver"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            39
+          ]
+        ],
+        "exclude": [
+          29
+        ]
+      },
+      "skinCount": 38,
+      "pairedCount": 106,
+      "uniqueBaseCount": 3,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 523,
+      "query": "Aphelios",
+      "wadName": "Aphelios.wad.client",
+      "mainUnit": "aphelios",
+      "cases": [
+        "shared-resolver"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            49
+          ]
+        ],
+        "exclude": [
+          17
+        ]
+      },
+      "skinCount": 48,
+      "pairedCount": 96,
+      "uniqueBaseCount": 2,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 800,
+      "query": "Mel",
+      "wadName": "Mel.wad.client",
+      "mainUnit": "mel",
+      "cases": [
+        "shared-resolver"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            20
+          ]
+        ],
+        "exclude": []
+      },
+      "skinCount": 20,
+      "pairedCount": 20,
+      "uniqueBaseCount": 1,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    },
+    {
+      "championId": 902,
+      "query": "Milio",
+      "wadName": "Milio.wad.client",
+      "mainUnit": "milio",
+      "cases": [
+        "shared-resolver"
+      ],
+      "skinSet": {
+        "ranges": [
+          [
+            1,
+            28
+          ]
+        ],
+        "exclude": []
+      },
+      "skinCount": 28,
+      "pairedCount": 56,
+      "uniqueBaseCount": 2,
+      "legacyExpectation": "success",
+      "directExpectation": "success"
+    }
+  ],
+  "totals": {
+    "champions": 11,
+    "skins": 617,
+    "paired": 1329,
+    "uniqueBase": 33,
+    "currentRebaseRitobinProcesses": 3987,
+    "phase5LogicalConversions": 2691
+  },
+  "commonSuccess": {
+    "excludeChampionIds": [],
+    "champions": 11,
+    "skins": 617,
+    "paired": 1329,
+    "uniqueBase": 33
+  }
+}

@@ -43,7 +43,7 @@ Copy-Item config.example.json config.json
 
 uv sync
 .\setup.bat
-uv run rebaser
+uv run rebaser --hash-update auto
 ```
 
 `uv sync` creates the project environment and installs dependencies.
@@ -51,9 +51,16 @@ uv run rebaser
 and `cslol-tools/`, and verifies SHA-256 before extraction. These setup steps can access
 the network.
 
-Without arguments, `rebaser` interactively selects a champion or exact skin/chroma.
+Use `--hash-update auto` on first use and after a game patch to refresh the path
+dictionary used to discover skins and auxiliary units. When the dictionary gains skin
+paths, Legacy mode rebuilds old archives the next time you select them.
+For offline runs, `uv run rebaser` opens the selector using the local dictionary.
 
 ## Usage
+
+Run `uv run rebaser` and choose `2`. Enter a full skin ID, an exact official name,
+or a local number with the champion name, such as `skin6 Sona`.
+Use `37006` for DJ Sona or `37006,50002` to generate both DJ Sona and Bilgewater Swain.
 
 Generate every non-classic Ahri skin and chroma without interactive selection:
 
@@ -76,9 +83,9 @@ uv run rebaser --help
 
 ## Output
 
-Archives are written to `output/<Champion>/<Base Skin>/` by default. Chromas use an
-additional directory named after the chroma. ZIP and Fantome outputs are standard ZIP
-containers with this layout:
+Archives are written to `output/<Champion>/<Base Skin>/` by default. Each published
+chroma has its own subdirectory under the parent skin listed in the local client.
+Both formats use a ZIP container with the following entries.
 
 ```text
 META/info.json
@@ -90,6 +97,19 @@ files.
 
 ## Support Boundaries
 
+- Skin rebasing supports PROP versions 1–3. It keeps the default skin's identity
+  and optional name. Materials and resource-map contents retain their original bytes.
+- Selecting a full skin ID or an exact official name checks the selected skins and
+  their required files. Champion mode checks all installed skins for that champion.
+  If a required conversion result or a known installed skin path is missing, generation
+  stops and reports the affected skin.
+- The WAD packer writes to a temporary file. A 120-second timeout or the observed
+  Windows heap-corruption exit triggers one retry in a fresh staging directory.
+  Only a successful result is published.
+- Resource links can be absent, local, shared with a dependency, or owned by another
+  unit in the same archive. The rebaser follows the referenced resolver key. When a
+  unit borrows a different skin's resolver, it verifies the provider in the installed
+  WAD before adding a dependency. [16.22 validation results](benchmarks/README.md#client-1622-coverage)
 - Direct mode supports WAD v3.0-v3.4 and required Raw, GZip, and single-frame Zstandard
   chunks without subchunks.
 - Required Satellite and ZstdMulti chunks are unsupported; unknown WAD versions and

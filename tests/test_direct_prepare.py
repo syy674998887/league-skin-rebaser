@@ -9,7 +9,10 @@ from rebaser.champion_layout import (
     CandidateRegistry,
     CandidateRegistryEntry,
     ChampionIdentity,
+    ChampionLayoutError,
     build_champion_layout,
+    build_hash_skin_champion_layout,
+    derive_hash_skin_candidates,
     ensure_required_chunk_identities,
 )
 from rebaser import hash_skin_index
@@ -125,6 +128,19 @@ def hash_index_for(paths: list[str]) -> hash_skin_index.HashSkinIndex:
 
 
 class DirectPrepareTests(unittest.TestCase):
+    def test_dictionary_missing_an_installed_auxiliary_target_is_rejected(self) -> None:
+        base = "data/characters/{}/skins/skin{}.bin"
+        paths = [base.format(unit, n) for unit in ("annie", "annietibbers") for n in (0, 1)]
+        with tempfile.TemporaryDirectory() as temp_name:
+            wad_path = Path(temp_name) / "Annie.wad.client"
+            write_skin_wad(wad_path, dict.fromkeys(paths, b"PROP"))
+            prepared = PreparedChampionWad(wad_path)
+            candidates = derive_hash_skin_candidates(
+                annie_identity(), prepared.chunks_by_hash, hash_index_for(paths[:-1])
+            )
+            with self.assertRaisesRegex(ChampionLayoutError, r"annietibbers.*--hash-update auto"):
+                build_hash_skin_champion_layout(annie_identity(), prepared, [1], candidates)
+
     def test_production_session_uses_dictionary_wad_candidate_intersection(
         self,
     ) -> None:
@@ -575,6 +591,21 @@ class DirectPrepareTests(unittest.TestCase):
 
             self.assertEqual(actual, expected)
             extractor.assert_called_once()
+
+    def test_legacy_fingerprint_changes_with_skin_paths_in_the_dictionary(self) -> None:
+        main = "data/characters/annie/skins/skin0.bin"
+        pet = "data/characters/annietibbers/skins/skin0.bin"
+        with tempfile.TemporaryDirectory() as temp:
+            wad = Path(temp) / "Annie.wad.client"
+            write_skin_wad(wad, {main: b"PROPbase", pet: b"PROPpet"})
+
+            def fingerprint(paths: list[str]) -> str:
+                runtime = Mock(hash_skin_index=hash_index_for(paths))
+                session = script.build_legacy_prepare_session(annie_identity(), wad, (1,), runtime_session=runtime)
+                return session.layout_fingerprints[1]
+
+            self.assertNotEqual(fingerprint([main]), fingerprint([main, pet]))
+            self.assertEqual(fingerprint([main, pet]), fingerprint([pet, main]))
 
     def test_unsupported_reader_fails_closed_without_automatic_fallback(
         self,

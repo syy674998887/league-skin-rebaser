@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import gzip
 import hashlib
 import io
@@ -29,6 +30,10 @@ except ImportError:
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from rebaser.skin_bin import RESOURCE_RESOLVER, SKIN_PROPERTIES, SkinBin, SkinBinError
+from rebaser.skin_identity import bin_key
+
 BUNDLED_RITOBIN = REPO_ROOT / "bin" / "ritobin_cli.exe"
 BUNDLED_RITOBIN_SUPPORT_RELATIVE_PATHS = (
     Path("bin") / "hashes" / "hashes.binentries.txt",
@@ -41,7 +46,7 @@ BUNDLED_RITOBIN_SUPPORT_RELATIVE_PATHS = (
 )
 BUNDLED_HASHES_GAME = REPO_ROOT / "cslol-tools" / "hashes.game.txt"
 DEFAULT_WORK_ROOT = REPO_ROOT / ".benchmarks"
-RESULT_SCHEMA_VERSION = 1
+RESULT_SCHEMA_VERSION = 3
 _SKIN_PATH_RE = re.compile(
     r"^data/characters/(?P<unit>[a-z0-9_]+)/skins/skin(?P<skin>\d+)\.bin$",
     re.IGNORECASE,
@@ -343,10 +348,11 @@ def load_fixed_path_hashes(
             "bundled hashes.game.txt differs from the source Golden identity",
         )
     wanted = {
-        pair.base_path
+        path
         for expectation in expectations.values()
         for units in expectation.units_by_skin.values()
         for pair in units.values()
+        for path in (pair.base_path, pair.target_path)
     }
     try:
         lines = BUNDLED_HASHES_GAME.read_text(
@@ -683,7 +689,6 @@ def extract_identity_fields(payload: dict[str, Any], context: OutputContext) -> 
         return matches[0]
 
     skin_entry = entry("SkinCharacterDataProperties")
-    resolver_entry = entry("ResourceResolver")
     skin_value = skin_entry.get("value")
     fields = skin_value.get("items") if isinstance(skin_value, dict) else None
     if not isinstance(fields, list):
@@ -695,24 +700,30 @@ def extract_identity_fields(payload: dict[str, Any], context: OutputContext) -> 
             for item in fields
             if isinstance(item, dict) and item.get("key") == name
         ]
-        if len(matches) != 1 or "value" not in matches[0]:
-            raise OutputGoldenError(context, f"expected 1 field {name}, got {len(matches)}")
+        if not matches:
+            return None
+        if len(matches) != 1 or matches[0].get("value") is None:
+            raise OutputGoldenError(context, f"ambiguous or invalid {name}")
         return matches[0]["value"]
 
+    link = field("mResourceResolver")
+    resolver_keys = [item["key"] for item in items if item["value"]["name"] == "ResourceResolver"]
+    local_keys = [key for key in resolver_keys if link is not None and bin_key(key) == bin_key(link)]
+    if len(local_keys) > 1:
+        raise OutputGoldenError(context, "duplicate local resource owner")
     values = {
         "skinCharacterDataPropertiesEntryKey": skin_entry.get("key"),
         "championSkinName": field("ChampionSkinName"),
-        "mResourceResolver": field("mResourceResolver"),
-        "resourceResolverEntryKey": resolver_entry.get("key"),
+        "mResourceResolver": link,
+        "resourceResolverEntryKey": local_keys[0] if local_keys else None,
     }
     if values["skinCharacterDataPropertiesEntryKey"] is None:
         raise OutputGoldenError(context, "SkinCharacterDataProperties entry key is missing")
-    if not isinstance(values["championSkinName"], str) or not values["championSkinName"]:
+    name = values["championSkinName"]
+    if name is None and link is None:
+        raise OutputGoldenError(context, "skin has neither a name nor a resource link")
+    if name is not None and (not isinstance(name, str) or not name):
         raise OutputGoldenError(context, "ChampionSkinName is not a non-empty string")
-    if values["mResourceResolver"] is None:
-        raise OutputGoldenError(context, "mResourceResolver is missing")
-    if values["resourceResolverEntryKey"] is None:
-        raise OutputGoldenError(context, "ResourceResolver entry key is missing")
     return values
 
 
@@ -1301,12 +1312,12 @@ def collect_archives(
     return sorted(collected, key=lambda item: int(item.context.skin))
 
 
-def collect_source_base_bins(
+def collect_source_bins(
     wad_path: Path,
     expectation: ChampionExpectation,
     expected_path_hashes: dict[str, int],
-) -> dict[tuple[str, str], bytes]:
-    context = OutputContext(expectation.champion, "*", "*", "source-base-wad")
+) -> dict[str, bytes]:
+    context = OutputContext(expectation.champion, "*", "*", "source-wad")
     try:
         wad_data = wad_path.read_bytes()
     except OSError as exc:
@@ -1314,73 +1325,57 @@ def collect_source_base_bins(
     if sha256_bytes(wad_data) != expectation.wad.get("sha256"):
         raise OutputGoldenError(context, "source WAD bytes no longer match benchmark identity")
     _, entries = parse_wad_index(wad_data, context)
-    result: dict[tuple[str, str], bytes] = {}
+    result: dict[str, bytes] = {}
     for skin_number in sorted(expectation.units_by_skin):
         for unit, pair in sorted(expectation.units_by_skin[skin_number].items()):
-            key = (unit, pair.base_sha256)
-            if key in result:
-                continue
-            unit_context = OutputContext(
-                expectation.champion,
-                skin_number,
-                unit,
-                "source-base-chunk",
-            )
-            path_hash = expected_path_hashes.get(pair.base_path)
-            if path_hash is None:
-                raise OutputGoldenError(
-                    unit_context,
-                    f"fixed dictionary has no hash for {pair.base_path}",
-                )
-            entry = entries.get(path_hash)
-            if entry is None:
-                raise OutputGoldenError(
-                    unit_context,
-                    f"source base path hash {path_hash:016x} is missing",
-                )
-            data = read_wad_entry(wad_data, entry, unit_context)
-            if sha256_bytes(data) != pair.base_sha256:
-                raise OutputGoldenError(unit_context, "source base BIN SHA-256 differs from Golden")
-            result[key] = data
+            unit_context = OutputContext(expectation.champion, skin_number, unit, "source-chunk")
+            for path, digest in ((pair.base_path, pair.base_sha256), (pair.target_path, pair.target_sha256)):
+                if path not in result:
+                    entry = entries.get(expected_path_hashes.get(path))
+                    if entry is None:
+                        raise OutputGoldenError(unit_context, f"source path missing: {path}")
+                    result[path] = read_wad_entry(wad_data, entry, unit_context)
+                if sha256_bytes(result[path]) != digest:
+                    raise OutputGoldenError(unit_context, f"source BIN SHA-256 differs for {path}")
     return result
 
 
+def preserved_target_data(data: bytes) -> tuple[bytes, list[tuple[int, bytes]]]:
+    tree = SkinBin.parse(data)
+    result = []
+    for kind, body in tree.entries:
+        if kind == SKIN_PROPERTIES:
+            body = b""
+        elif kind == RESOURCE_RESOLVER:
+            body = body[:4] + body[8:]  # only the key may be remapped
+        result.append((kind, body))
+    return tree.header, result
+
+
 def build_conversion_inputs(
-    archives: list[CollectedArchive],
-    source_bases: dict[tuple[str, str], bytes],
-) -> tuple[list[ConversionInput], dict[tuple[int, str], str], dict[tuple[str, str], str]]:
-    inputs: list[ConversionInput] = []
-    output_keys: dict[tuple[int, str], str] = {}
-    base_keys: dict[tuple[str, str], str] = {}
+    archives: list[CollectedArchive], source_bins: dict[str, bytes],
+) -> list[ConversionInput]:
+    context = OutputContext(archives[0].context.champion, "*", "*", "source-conversion")
+    inputs = [ConversionInput(path, context, data) for path, data in source_bins.items()]
     for archive in archives:
-        skin_number = int(archive.context.skin)
         for unit in archive.units:
-            key = f"output:{skin_number}:{unit.expectation.unit}"
-            output_keys[(skin_number, unit.expectation.unit)] = key
-            inputs.append(
-                ConversionInput(
-                    key=key,
-                    context=OutputContext(
-                        unit.context.champion,
-                        skin_number,
-                        unit.expectation.unit,
-                        "ritobin-output-conversion",
-                    ),
-                    bin_data=unit.bin_data,
-                )
-            )
-    champion = archives[0].context.champion if archives else "<global>"
-    for index, ((unit, base_sha256), data) in enumerate(sorted(source_bases.items())):
-        key = f"base:{index}:{unit}:{base_sha256}"
-        base_keys[(unit, base_sha256)] = key
-        inputs.append(
-            ConversionInput(
-                key=key,
-                context=OutputContext(champion, "*", unit, "ritobin-base-conversion"),
-                bin_data=data,
-            )
-        )
-    return inputs, output_keys, base_keys
+            path = unit.expectation.target_path
+            try:
+                out_header, out_entries = preserved_target_data(unit.bin_data)
+                src_header, src_entries = preserved_target_data(source_bins[path])
+                if out_entries != src_entries:
+                    raise OutputGoldenError(unit.context, "unmodified PROP entries differ from target")
+                if out_header != src_header and not (
+                    len(src_header) >= 12 and len(out_header) > len(src_header)
+                    and out_header[:8] == src_header[:8]
+                    and struct.unpack_from("<I", out_header, 8)[0] == struct.unpack_from("<I", src_header, 8)[0] + 1
+                    and out_header[12:].startswith(src_header[12:])
+                ):
+                    raise OutputGoldenError(unit.context, "original PROP dependencies changed")
+            except SkinBinError as exc:
+                raise OutputGoldenError(unit.context, str(exc)) from exc
+            inputs.append(ConversionInput(f"output:{path}", unit.context, unit.bin_data))
+    return inputs
 
 
 def run_bundled_ritobin(
@@ -1398,8 +1393,8 @@ def run_bundled_ritobin(
         stem = f"{index:06d}"
         input_path = input_root / f"{stem}.bin"
         try:
-            input_path.write_bytes(item.bin_data)
-        except OSError as exc:
+            input_path.write_bytes(SkinBin.parse(item.bin_data).ritobin_view())
+        except (OSError, SkinBinError) as exc:
             raise OutputGoldenError(item.context, f"failed staging BIN: {exc}") from exc
         paths[item.key] = (output_root / f"{stem}.json", item.context)
     command = [
@@ -1445,14 +1440,69 @@ def run_bundled_ritobin(
     return converted
 
 
+def nonidentity_content(payload: dict[str, Any], context: OutputContext) -> dict[str, Any]:
+    result = copy.deepcopy(payload)
+    result.pop("linked", None)  # verified separately against the source and provider
+    for entry in _entry_items(result, context):
+        value = entry["value"]
+        if value["name"] == "ResourceResolver":
+            entry.pop("key")
+        elif value["name"] == "SkinCharacterDataProperties":
+            entry.pop("key")
+            value["items"] = [field for field in value["items"] if field["key"] != "ChampionSkinName"]
+            for field in value["items"]:
+                if field["key"] == "mResourceResolver":
+                    field.pop("value")
+    return result
+
+
+def expected_dependencies(
+    target: dict[str, Any], source_link: int | str | None, base_link: int | str | None,
+    own_unit: str, owners: dict[int, set[str]], local_links: dict[int, int | str],
+    converted: dict[str, tuple[dict[str, Any], bytes]], context: OutputContext,
+) -> list[str]:
+    links = list(target.get("linked", {}).get("value", {}).get("items", []))
+    if source_link is None or base_link is None or bin_key(source_link) in local_links:
+        return links
+    for peer in owners.get(bin_key(base_link), set()) - {own_unit}:
+        # Look up the real owner in authenticated source BINs, including cases
+        # where the source dictionary represents a resolver name as a number.
+        for path, (doc, _) in converted.items():
+            if not path.startswith(f"data/characters/{peer}/skins/") or path.endswith("/skin0.bin"):
+                continue
+            canonical = path.removeprefix("data/").removesuffix(".bin") + "/resources"
+            if bin_key(canonical) != bin_key(source_link):
+                continue
+            if not any(item["value"]["name"] == "ResourceResolver" and bin_key(item["key"]) == bin_key(source_link)
+                       for item in _entry_items(doc, context)):
+                raise OutputGoldenError(context, f"{path} does not define the referenced resolver")
+            if path not in {p.casefold() for p in links}:
+                links.append(path)
+    return links
+
+
 def archive_record(
     archive: CollectedArchive,
     converted: dict[str, tuple[dict[str, Any], bytes]],
-    output_keys: dict[tuple[int, str], str],
-    base_keys: dict[tuple[str, str], str],
 ) -> dict[str, Any]:
     skin_number = int(archive.context.skin)
     units: list[dict[str, Any]] = []
+    owners: dict[int, set[str]] = {}
+    local_links: dict[int, int | str] = {}
+    source_identities = {}
+    for unit in archive.units:
+        context = unit.context
+        pair = unit.expectation
+        if pair.base_path not in converted or pair.target_path not in converted:
+            raise OutputGoldenError(context, "converted source JSON is missing")
+        base = extract_identity_fields(converted[pair.base_path][0], context)
+        target = extract_identity_fields(converted[pair.target_path][0], context)
+        base_key, target_key = base["resourceResolverEntryKey"], target["resourceResolverEntryKey"]
+        if base_key is not None:
+            owners.setdefault(bin_key(base_key), set()).add(pair.unit)
+        if target_key is not None:
+            local_links[bin_key(target_key)] = base_key if base_key is not None else target_key
+        source_identities[pair.unit] = base, target
     for unit in archive.units:
         identity_context = OutputContext(
             unit.context.champion,
@@ -1460,28 +1510,41 @@ def archive_record(
             unit.expectation.unit,
             "rebased-bin-semantics",
         )
-        output_key = output_keys.get((skin_number, unit.expectation.unit))
-        base_key = base_keys.get((unit.expectation.unit, unit.expectation.base_sha256))
-        if output_key not in converted or base_key not in converted:
+        target_path = unit.expectation.target_path
+        output_key = f"output:{target_path}"
+        base_key = unit.expectation.base_path
+        if any(key not in converted for key in (output_key, base_key, target_path)):
             raise OutputGoldenError(identity_context, "converted JSON result is missing")
         output_payload, output_json = converted[output_key]
-        base_payload, base_json = converted[base_key]
+        _, base_json = converted[base_key]
+        target_payload, _ = converted[target_path]
+        base, target = source_identities[unit.expectation.unit]
         output_identity = extract_identity_fields(output_payload, identity_context)
-        base_identity = extract_identity_fields(
-            base_payload,
-            OutputContext(
-                unit.context.champion,
-                skin_number,
-                unit.expectation.unit,
-                "source-base-semantics",
-            ),
-        )
-        if output_identity != base_identity:
+        original_link = target["mResourceResolver"]
+        expected_link = None if original_link is None else local_links.get(bin_key(original_link), original_link)
+        expected = dict(base)
+        expected["mResourceResolver"] = expected_link
+        expected["resourceResolverEntryKey"] = expected_link if target["resourceResolverEntryKey"] is not None else None
+        if output_identity != expected:
             raise OutputGoldenError(
                 identity_context,
-                f"identity/link fields differ from source base: "
-                f"output={output_identity}, base={base_identity}",
+                f"identity/link fields differ: output={output_identity}, expected={expected}",
             )
+        deps = expected_dependencies(target_payload, original_link, base["mResourceResolver"],
+                                     unit.expectation.unit, owners, local_links, converted, identity_context)
+        if output_payload.get("linked", {}).get("value", {}).get("items", []) != deps:
+            raise OutputGoldenError(identity_context, "output dependencies differ from confirmed source providers")
+        original_keys = [entry["key"] for entry in _entry_items(target_payload, identity_context)
+                         if entry["value"]["name"] == "ResourceResolver"]
+        target_owner = target["resourceResolverEntryKey"]
+        expected_keys = [expected_link if target_owner is not None and bin_key(k) == bin_key(target_owner) else k
+                         for k in original_keys]
+        output_keys = [entry["key"] for entry in _entry_items(output_payload, identity_context)
+                       if entry["value"]["name"] == "ResourceResolver"]
+        if output_keys != expected_keys:
+            raise OutputGoldenError(identity_context, "unreferenced resolver key or resolver order changed")
+        if nonidentity_content(output_payload, identity_context) != nonidentity_content(target_payload, identity_context):
+            raise OutputGoldenError(identity_context, "non-identity properties differ from the source target")
         units.append(
             {
                 "unit": unit.expectation.unit,
@@ -1740,15 +1803,12 @@ def run(args: argparse.Namespace) -> int:
                 expected_path_hashes,
             )
             source_wad = Path(str(benchmark_wad["path"])).resolve()
-            source_bases = collect_source_base_bins(
+            source_bins = collect_source_bins(
                 source_wad,
                 expectation,
                 expected_path_hashes,
             )
-            conversion_inputs, output_keys, base_keys = build_conversion_inputs(
-                archives,
-                source_bases,
-            )
+            conversion_inputs = build_conversion_inputs(archives, source_bins)
             try:
                 with tempfile.TemporaryDirectory(
                     prefix=f".golden-output-{champion_id}-",
@@ -1767,8 +1827,6 @@ def run(args: argparse.Namespace) -> int:
                 archive_record(
                     archive,
                     converted,
-                    output_keys,
-                    base_keys,
                 )
                 for archive in archives
             ]

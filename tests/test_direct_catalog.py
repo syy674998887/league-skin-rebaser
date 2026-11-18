@@ -12,6 +12,8 @@ from rebaser.champion_layout import (
     ChampionIdentity,
 )
 from tests.helpers.synthetic_wad import SyntheticChunk, write_synthetic_wad
+from tests.helpers.synthetic_prop import prop
+from rebaser.skin_bin import SKIN_PROPERTIES
 from rebaser.persistent_cache import PersistentJsonCache
 from rebaser.wad_access import PreparedChampionWad, wad_path_hash
 
@@ -88,6 +90,72 @@ def registry() -> CandidateRegistry:
 
 
 class DirectCatalogTests(unittest.TestCase):
+    def test_successful_converter_exit_with_missing_json_rejects_the_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            root = Path(temp_name)
+            skins = root / "skins"
+            skins.mkdir()
+            for number in (0, 7):
+                (skins / f"skin{number}.bin").touch()
+            with (
+                patch.object(script, "run_ritobin_dir_quiet"),
+                patch.object(script, "parse_skin_metadata", side_effect=[{"skin_number": 0}, None]),
+                self.assertRaisesRegex(script.ChampionLayoutError, "skin7.bin"),
+            ):
+                script.collect_catalog_rows(skins, root / "json")
+
+    def test_cached_exact_selection_does_not_hide_missing_installed_skins(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            root = Path(temp_name)
+            wad_path = root / "Annie.wad.client"
+            paths = [f"data/characters/annie/skins/skin{n}.bin" for n in (0, 1, 7)]
+            payload = prop([(SKIN_PROPERTIES, 1, 0, b"")])
+            chunks = [SyntheticChunk(wad_path_hash(path), payload, 0) for path in paths]
+            write_synthetic_wad(wad_path, sorted(chunks, key=lambda chunk: chunk.path_hash), version_minor=4)
+            session = runtime_session(wad_path, paths[:2])
+            session.persistent_cache = PersistentJsonCache(root / "cache")
+            tool = root / "ritobin.exe"
+            tool.touch()
+            official = script.OfficialNameCatalog(1, {0: "Annie", 1: "Skin One", 7: "Skin Seven"})
+
+            def read_staged(skins_dir: Path, _json_dir: Path) -> list[dict[str, int]]:
+                return [{"skin_number": int(path.stem[4:])} for path in skins_dir.glob("*.bin")]
+
+            with (
+                patch.object(script, "RITOBIN_CLI", tool),
+                patch.object(script, "capture_lcu_wad_generation", return_value=()),
+                patch.object(script, "catalog_lcu_source_documents", return_value=[]),
+                patch.object(script, "create_runtime_champion_session", return_value=session),
+                patch.object(script, "collect_catalog_rows", side_effect=read_staged),
+                patch.object(script, "load_official_name_catalog", return_value=official),
+                script.ChampionSessionPool(root, "direct") as pool,
+            ):
+                scoped = pool.get_catalog("Annie", wad_path, frozenset({1}))
+                self.assertEqual([skin.skin_number for skin in scoped.skins], [0, 1])
+                self.assertIs(scoped, pool.get_catalog("Annie", wad_path, frozenset({1})))
+                for requested in (None, frozenset({7})):
+                    with self.subTest(requested=requested), self.assertRaisesRegex(
+                        script.ChampionLayoutError, r"\[7\].*--hash-update auto"
+                    ):
+                        pool.get_catalog("Annie", wad_path, requested)
+
+    def test_official_hierarchy_takes_precedence_over_shared_models(self) -> None:
+        official = script.parse_official_name_catalog(1, {"id": 1, "skins": [
+            {"id": 1001, "name": "Skin A", "chromas": [{"id": 1002, "name": "Ruby"}]},
+            {"id": 1003, "name": "Variant"},
+        ]})
+        rows = [
+            {"skin_number": 1, "skeleton": "shared"},
+            {"skin_number": 2, "skeleton": "other"},
+            {"skin_number": 3, "skeleton": "shared", "parent": 1},
+            {"skin_number": 4, "parent": 1},
+        ]
+        with patch.object(script, "load_official_name_catalog", return_value=official):
+            catalog = script.build_catalog_from_metadata_rows("Annie", Path("Annie.wad.client"), identity(), rows)
+        self.assertEqual([s.parent_skin_number for s in catalog.skins], [None, 1, None, 1])
+        self.assertEqual(catalog.skins[1].base_display_name, "Skin A")
+        self.assertEqual(catalog.skins[2].base_display_name, "Variant")
+
     def test_fails_closed_without_validated_hash_index(self) -> None:
         path = "data/characters/annie/skins/skin0.bin"
         with tempfile.TemporaryDirectory() as temp_name:
@@ -119,12 +187,16 @@ class DirectCatalogTests(unittest.TestCase):
             ):
                 script.build_direct_catalog(session)
 
-    def test_reads_only_dictionary_bound_present_main_bins(
+    def test_exact_selection_stages_only_requested_main_skin_views(
         self,
     ) -> None:
+        base = (SKIN_PROPERTIES, 1, 0, b"")
+        target = (SKIN_PROPERTIES, 2, 0, b"")
+        opaque = (1234, 3, 0, b"")
         payloads = {
-            "data/characters/annie/skins/skin0.bin": b"PROP-base",
-            "data/characters/annie/skins/skin7.bin": b"PROP-target",
+            "data/characters/annie/skins/skin0.bin": prop([base, opaque]),
+            "data/characters/annie/skins/skin7.bin": prop([target, opaque]),
+            "data/characters/annie/skins/skin8.bin": b"PROP-truncated-unrelated",
             "data/characters/annietibbers/skins/skin0.bin": b"PROP-pet",
         }
         with tempfile.TemporaryDirectory() as temp_name:
@@ -158,7 +230,6 @@ class DirectCatalogTests(unittest.TestCase):
                         "skinline": "",
                         "skeleton": "annie",
                         "simple_skin": "annie",
-                        "texture": None,
                     },
                     {
                         "skin_number": 7,
@@ -168,7 +239,6 @@ class DirectCatalogTests(unittest.TestCase):
                         "skinline": "",
                         "skeleton": "annie7",
                         "simple_skin": "annie7",
-                        "texture": None,
                     },
                 ]
 
@@ -224,7 +294,7 @@ class DirectCatalogTests(unittest.TestCase):
                     wraps=prepared.read_hashes,
                 ) as read_hashes,
             ):
-                catalog = script.build_direct_catalog(session)
+                catalog = script.build_direct_catalog(session, frozenset({7}))
 
             self.assertEqual(
                 tuple(
@@ -239,8 +309,8 @@ class DirectCatalogTests(unittest.TestCase):
             self.assertEqual(
                 observed_staged,
                 {
-                    "skin0.bin": b"PROP-base",
-                    "skin7.bin": b"PROP-target",
+                    "skin0.bin": prop([base]),
+                    "skin7.bin": prop([target]),
                 },
             )
             self.assertEqual(
@@ -307,8 +377,8 @@ class DirectCatalogTests(unittest.TestCase):
 
     def test_persistent_catalog_skips_ritobin_in_a_fresh_session(self) -> None:
         payloads = {
-            "data/characters/annie/skins/skin0.bin": b"PROP-base",
-            "data/characters/annie/skins/skin7.bin": b"PROP-target",
+            "data/characters/annie/skins/skin0.bin": prop([(SKIN_PROPERTIES, 1, 0, b"")]),
+            "data/characters/annie/skins/skin7.bin": prop([(SKIN_PROPERTIES, 2, 0, b"")]),
         }
         rows = [
             {
@@ -319,7 +389,6 @@ class DirectCatalogTests(unittest.TestCase):
                 "skinline": "",
                 "skeleton": "annie",
                 "simple_skin": "annie",
-                "texture": None,
             },
             {
                 "skin_number": 7,
@@ -329,7 +398,6 @@ class DirectCatalogTests(unittest.TestCase):
                 "skinline": "",
                 "skeleton": "annie7",
                 "simple_skin": "annie7",
-                "texture": None,
             },
         ]
         official = script.OfficialNameCatalog(
@@ -385,6 +453,10 @@ class DirectCatalogTests(unittest.TestCase):
             ):
                 first = script.build_direct_catalog(first_session)
             self.assertEqual(collect.call_count, 1)
+            partial = script.serialize_local_catalog(first)
+            partial["skins"].pop()
+            with self.assertRaisesRegex(script.ChampionLayoutError, "differs from the main skin paths"):
+                script.deserialize_local_catalog(partial, first_session)
 
             second_session = runtime_session(wad_path, payloads)
             second_session.persistent_cache = PersistentJsonCache(

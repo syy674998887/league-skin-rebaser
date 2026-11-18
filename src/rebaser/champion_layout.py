@@ -880,7 +880,7 @@ def build_hash_skin_champion_layout(
     skin_numbers: Iterable[int],
     candidate_set: HashSkinCandidateSet,
 ) -> ChampionLayout:
-    """Build Layout from dictionary-bound hashes without recomputing paths."""
+    """Bind selected paths to dictionary records and detect stale omissions."""
 
     selected = _validate_layout_request(
         identity,
@@ -946,6 +946,12 @@ def build_hash_skin_champion_layout(
     ) -> tuple[str | None, WadChunk | None]:
         record = records_by_key.get((unit, skin_number))
         if record is None:
+            path = champion_skin_path(unit, skin_number)
+            if wad_path_hash(path) in prepared.chunks_by_hash:
+                raise ChampionLayoutError(
+                    f"{prepared.wad_path.name} contains {path}, missing from the path "
+                    "dictionary; refresh it with --hash-update auto"
+                )
             return None, None
         chunk = inspected.get(record.path_hash)
         if chunk is None:
